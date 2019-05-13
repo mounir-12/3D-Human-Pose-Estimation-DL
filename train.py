@@ -29,7 +29,12 @@ SAVE_ITER_FREQ = 2000
 
 # Path
 LOG_PATH = "./log/example/"
-DATA_PATH = "/cluster/project/infk/hilliges/lectures/mp19/project2/"
+CLUSTER_PATH = "/cluster/project/infk/hilliges/lectures/mp19/project2/"
+LOCAL_PATH = "."
+if os.path.exists(CLUSTER_PATH):
+    DATA_PATH = CLUSTER_PATH
+else:
+    DATA_PATH = LOCAL_PATH
 
 
 config = tf.ConfigProto()
@@ -37,7 +42,7 @@ config.gpu_options.allow_growth = True
 config.gpu_options.visible_device_list = "0"
 with tf.Session(config=config) as sess:
     # load image and GT 3d pose
-    im, p3d_gt = create_dataloader_train(data_root=DATA_PATH, batch_size=BATCH_SIZE)
+    im, p3d_gt = create_dataloader_train(data_root=DATA_PATH, batch_size=BATCH_SIZE) # get the pair and split it (i,e unzip the tuple)
 
     # load mean and std
     p3d_mean = np.loadtxt(os.path.join(DATA_PATH,'annot',"mean.txt")).reshape([1,17,3]).astype(np.float32)
@@ -46,8 +51,8 @@ with tf.Session(config=config) as sess:
     p3d_std = tf.constant(p3d_std)
     p3d_mean = tf.constant(p3d_mean)
 
-    p3d_std = tf.tile(p3d_std,[BATCH_SIZE,1,1])
-    p3d_mean = tf.tile(p3d_mean,[BATCH_SIZE,1,1])
+    p3d_std = tf.tile(p3d_std,[BATCH_SIZE,1,1]) # repeat batch_size times along 0th dim
+    p3d_mean = tf.tile(p3d_mean,[BATCH_SIZE,1,1]) # repeat batch_size times along 0th dim
 
     # normalize 3d pose
     p3d_gt = normalize_pose(p3d_gt,p3d_mean,p3d_std)
@@ -104,4 +109,4 @@ with tf.Session(config=config) as sess:
             if i % SAVE_ITER_FREQ == 0:
                 saver.save(sess,os.path.join(LOG_PATH,"model"),global_step=i)
 
-    saver.save(sess,os.path.join(LOG_PATH,"model"),global_step=int(NUM_EPOCHS * NUM_SAMPLES / BATCH_SIZE))
+    saver.save(sess,os.path.join(LOG_PATH,"model"),global_step=int(NUM_EPOCHS * NUM_SAMPLES / BATCH_SIZE)) # save at the end of training

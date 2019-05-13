@@ -17,7 +17,14 @@ import h5py
 import os
 import cv2
 
-DATA_PATH = "/cluster/project/infk/hilliges/lectures/mp19/project2/"
+CLUSTER_PATH = "/cluster/project/infk/hilliges/lectures/mp19/project2/"
+LOCAL_PATH = "."
+if os.path.exists(CLUSTER_PATH):
+    DATA_PATH = CLUSTER_PATH
+else:
+    DATA_PATH = LOCAL_PATH
+    
+max_num = 10 # max number of images to show with their 2D joints + 3D skeleton
 
 def show3Dpose(channels, ax): # blue, orange
 
@@ -53,6 +60,9 @@ annotations_path = os.path.join(DATA_PATH,"annot","train.h5")
 annotations = h5py.File(annotations_path, 'r')
 
 for i,path in enumerate(all_image_paths):
+    if i >= max_num: # only show the max_num images with their 2D joints + 3D skeleton
+        break;
+        
     fig = plt.figure()
     ax_img = fig.add_subplot(131)
     ax_p2d = fig.add_subplot(132)
@@ -62,11 +72,11 @@ for i,path in enumerate(all_image_paths):
     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
     ax_img.imshow(image)
 
-    p2d = annotations["pose2d"][i]
+    p2d = annotations["pose2d"][i] # get the i'th image's 2D joints
     image_p2d = image.copy()
-    for joint_id in range( p2d.shape[0]):
-        joint = ( int(p2d[joint_id,0]),int(p2d[joint_id,1]))
-        image_p2d = cv2.circle(image_p2d, joint, 3, (0,255,0),-1)
+    for joint_id in range( p2d.shape[0]): # mark all 2D joint on the image
+        joint = ( int(p2d[joint_id,0]),int(p2d[joint_id,1])) # 2D coordinates of the joint
+        image_p2d = cv2.circle(image_p2d, joint, 3, (0,255,0),-1) # put a circle marker at the position of the joint in the image
     ax_p2d.imshow(image_p2d)
 
     p3d = annotations["pose3d"][i]

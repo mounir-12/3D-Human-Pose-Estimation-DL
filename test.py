@@ -22,7 +22,12 @@ import math
 # Global Attribute
 BATCH_SIZE = 32
 LOG_PATH  ="./log/example"
-DATA_PATH = "/cluster/project/infk/hilliges/lectures/mp19/project2/"
+CLUSTER_PATH = "/cluster/project/infk/hilliges/lectures/mp19/project2/"
+LOCAL_PATH = "."
+if os.path.exists(CLUSTER_PATH):
+    DATA_PATH = CLUSTER_PATH
+else:
+    DATA_PATH = LOCAL_PATH
 
 with tf.Session() as sess:
     # load image and GT 3d pose
@@ -53,7 +58,7 @@ with tf.Session() as sess:
     saver.restore(sess,tf.train.latest_checkpoint(LOG_PATH))
 
     predictions = None
-    with trange(math.ceil(10987/BATCH_SIZE)) as t:
+    with trange(math.ceil(10987/BATCH_SIZE)) as t: # generate predictions for all images
         for i in t:
             p3d_out_value = sess.run(p3d_out)
 

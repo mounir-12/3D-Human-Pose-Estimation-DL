@@ -28,7 +28,9 @@ def compute_MPJPE(p3d_out,p3d_gt,p3d_std):
 
 def normalize_pose(p3d,p3d_mean, p3d_std):
 
-    root = tf.tile( tf.expand_dims(p3d[:,0,:],axis=1), [1,17,1])
+    root = tf.tile( tf.expand_dims(p3d[:,0,:],axis=1), [1,17,1]) # extracting the root joints via p3d[:,0,:] reduces the dimension by 1,
+                                                                 # tf.expand_dims() just reshapes the result to put back this dimension
+                                                                 # tf.tile() to replicate the root's coordinates j times j=#joints=17
     p3d = p3d - root
 
     p3d = (p3d-p3d_mean) / p3d_std
