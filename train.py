@@ -17,6 +17,7 @@ from tqdm import trange
 from utils import compute_MPJPE,normalize_pose
 from data import create_dataloader_train
 import resnet_model
+from hourglass2D_model import StackedHourglass
 
 NUM_SAMPLES= 312188
 
@@ -58,15 +59,15 @@ with tf.Session(config=config) as sess:
     p3d_gt = normalize_pose(p3d_gt,p3d_mean,p3d_std)
 
     # define resnet model
-    model = resnet_model.Model()
+    model = StackedHourglass()
 
     # predict 3d pose
     p3d_out = model(im, training=True)
+    
+    print("success!!\n\n")
 
     # compute loss
     loss = tf.losses.absolute_difference(p3d_gt, p3d_out)
-
-    learning_rate = tf.placeholder(tf.float32, shape=[])
 
     # define trainer
     update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS) # for batch norm
@@ -94,9 +95,9 @@ with tf.Session(config=config) as sess:
         for i in t:
 
 	        # display training status
-            epoch_cur = i * BATCH_SIZE/ NUM_SAMPLES
-            iter_cur = (i * BATCH_SIZE ) % NUM_SAMPLES
-            t.set_postfix(epoch=epoch_cur,iter_percent="%d %%"%(iter_cur/float(NUM_SAMPLES)*100) )
+            epoch_cur = i * BATCH_SIZE/ NUM_SAMPLES # nb of epochs completed (e,g 1.5 => one epoch and a half)
+            iter_cur = (i * BATCH_SIZE ) % NUM_SAMPLES # nb of images processed in current epoch
+            t.set_postfix(epoch=epoch_cur,iter_percent="%d %%"%(iter_cur/float(NUM_SAMPLES)*100) ) # update displayed info, iter_percent = percentage of completion of current iteration (i,e epoch)
 
             # vis
             if i % LOG_ITER_FREQ == 0:

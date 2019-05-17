@@ -18,6 +18,7 @@ import os
 def preprocess_image(image):
     image = tf.image.decode_jpeg(image, channels=3)
     image = tf.cast(image,tf.float32) / 128. - 1
+    image = tf.transpose(a=image, perm=[2, 0, 1]) # images are read in channels_last format, so convert to channels_first format
     return image
 
 def load_and_preprocess_image_and_pose(path,pose):
