@@ -24,12 +24,15 @@ from PIL import Image
 NUM_SAMPLES= 312188
 
 # Hyper parameters
-NUM_EPOCHS = 5
-BATCH_SIZE = 8
+NUM_EPOCHS = 1
+BATCH_SIZE = 4
 LEARNING_RATE = 0.003
-LOG_ITER_FREQ = 10
+LOG_ITER_FREQ = 50
 SAVE_ITER_FREQ = 2000
-SAMPLE_ITER_FREQ = 20
+SAMPLE_ITER_FREQ = 100
+SHUFFLE=True
+DATA_TO_LOAD="pose2d"
+
 
 # Path
 LOG_PATH = "./log/example/"
@@ -47,7 +50,7 @@ config.gpu_options.visible_device_list = "0"
 with tf.Session(config=config) as sess:
     
     # load dataset of batched pairs (image, pose), means and stddev
-    dataset, p2d_mean, p2d_std = create_dataloader_train(data_root=DATA_PATH, batch_size=BATCH_SIZE, data_to_load="pose2d", shuffle=False)
+    dataset, p2d_mean, p2d_std = create_dataloader_train(data_root=DATA_PATH, batch_size=BATCH_SIZE, data_to_load=DATA_TO_LOAD, shuffle=SHUFFLE)
     im, p2d_gt = dataset # split the pairs (i,e unzip the tuple). When running one, the other also moves to the next elem (i,e same iterator)
 
     # mean and std
@@ -64,7 +67,7 @@ with tf.Session(config=config) as sess:
 #    p2d_gt = normalize_pose_2d(p2d_gt,p2d_mean,p2d_std)
 
     # define model
-    model = StackedHourglass(nb_stacks=1)
+    model = StackedHourglass(nb_stacks=1, sigma=2)
     
     # build the model
     a = time.time()
@@ -109,19 +112,21 @@ with tf.Session(config=config) as sess:
             if (i+1) % SAMPLE_ITER_FREQ == 0:
                 _, images, p2d_gt_arr, p2d_pred_arr = sess.run([train_op, im, p2d_gt, p2d_pred])
                 
+                print("GT:", p2d_gt_arr[0])
+                print("Pred:", p2d_pred_arr[0])
                 image = ((images[0]+1)*128.0).transpose(1,2,0).astype("uint8") # unnormalize, put in channels_last format and cast to uint8
                 img = Image.fromarray(image, "RGB")
 #                img = img.resize(heatmaps_pred[0,0].shape)
                 save_p2d_image(np.array(img), p2d_gt_arr[0], p2d_pred_arr[0], "train_sample", i+1)
             
-            elif i % LOG_ITER_FREQ == 0:
+            elif (i+1) % LOG_ITER_FREQ == 0:
                 _, summary = sess.run([train_op, merged])
                 train_writer.add_summary(summary, i)
             else:
                 _, = sess.run([train_op])
 
             # save model
-            if i % SAVE_ITER_FREQ == 0:
+            if (i+1) % SAVE_ITER_FREQ == 0:
                 saver.save(sess,os.path.join(LOG_PATH,"model"),global_step=i)
 
     saver.save(sess,os.path.join(LOG_PATH,"model"),global_step=int(NUM_EPOCHS * NUM_SAMPLES / BATCH_SIZE)) # save at the end of training

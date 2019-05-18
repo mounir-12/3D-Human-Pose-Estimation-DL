@@ -61,11 +61,11 @@ class StackedHourglass:
         batch_size = tf.shape(inp)[0]
         self.scale = tf.tile(tf.reshape(tf.stack([self.scale_W, self.scale_H]), [1,1,2]), [batch_size, self.nb_joins, 1]) # tensor to rescale 2d poses to match output resolution 
                                                                                                                           # (i,e the scaling from input to output)
-        p2d_pred_scaled_down = tf.map_fn(self.heatmaps_2d_to_pose, final_output) # transform each set of heatmaps in the batch to 
+        p2d_pred_scaled_down = tf.map_fn(self.heatmaps_2d_to_pose, final_output) # transform each set of heatmaps in the batch to a p2d
         
         p2d_pred = p2d_pred_scaled_down / self.scale # divide by scale to scale up joints positions to input resolution
         self.p2d_pred = p2d_pred
-
+        
         print("\n\nBuilt the model in {} s\n\n".format(time.time()-a))
 
         return outputs, p2d_pred # return all heatmaps of all hourglasses and the p2d predicted from the final_output
@@ -114,11 +114,12 @@ class StackedHourglass:
         return prob
         
     def heatmaps_2d_to_pose(self, heatmaps): # expects 1 set of heatmaps (i,e not a batch, but 17 heatmaps, one per joint)
-        return tf.map_fn(lambda a: tf.cast(tf.unravel_index(
-                            tf.argmax(tf.reshape(a, [-1]), output_type=tf.int32), tf.shape(a)), tf.float32)
-                  , heatmaps) # for each heatmap array "a", flatten array then get argmax index in flattened array then convert flat_index back to 2d index using unravel_index then cast 2d index 
-                              # to float32
-                                                                                                                                            
+        return tf.map_fn(lambda a: tf.roll(tf.cast(tf.unravel_index(
+                                            tf.argmax(tf.reshape(a, [-1]), output_type=tf.int32), tf.shape(a)),tf.float32),
+                                    axis=0, shift=1)
+                        , heatmaps) # for each heatmap array "a", flatten array then get argmax index in flattened array then convert flat_index back to 2d index using unravel_index then cast 2d 
+                                    # index to float32, then swap the result (using tf.roll) since the result is (row, col), but we want (col, row)=(x, y)
+                                                                                                                                       
         
     def compute_loss(self, p2d_gt, all_heatmaps_pred):
         # we need to scale the ground-truth joints positions to account for the scaling from input to output image
