@@ -14,7 +14,6 @@ import tensorflow as tf
 import h5py
 import os
 import numpy as np
-from scipy.stats import multivariate_normal
  
 def preprocess_image(image):
     image = tf.image.decode_jpeg(image, channels=3)
