@@ -29,7 +29,7 @@ BATCH_SIZE = 8
 LEARNING_RATE = 0.003
 LOG_ITER_FREQ = 10
 SAVE_ITER_FREQ = 2000
-SAMPLE_ITER_FREQ = 100
+SAMPLE_ITER_FREQ = 20
 
 # Path
 LOG_PATH = "./log/example/"
@@ -49,7 +49,7 @@ with tf.Session(config=config) as sess:
     # load dataset of batched pairs (image, pose), means and stddev
     dataset, p2d_mean, p2d_std = create_dataloader_train(data_root=DATA_PATH, batch_size=BATCH_SIZE, data_to_load="pose2d", shuffle=False)
     im, p2d_gt = dataset # split the pairs (i,e unzip the tuple). When running one, the other also moves to the next elem (i,e same iterator)
-        
+
     # mean and std
 #    p2d_mean = p2d_mean.reshape([1,17,2]).astype(np.float32)
 #    p2d_std = p2d_std.reshape([1,17,2]).astype(np.float32)
@@ -68,7 +68,7 @@ with tf.Session(config=config) as sess:
     
     # build the model
     a = time.time()
-    all_heatmaps_pred = model(im, training=True)
+    all_heatmaps_pred, p2d_pred = model(im, training=True)
     
     # compute loss
     loss = model.compute_loss(p2d_gt, all_heatmaps_pred)
@@ -107,13 +107,12 @@ with tf.Session(config=config) as sess:
 
             # vis
             if (i+1) % SAMPLE_ITER_FREQ == 0:
-                _, images, heatmaps_pred = sess.run([train_op, im, model.final_output])
+                _, images, p2d_gt_arr, p2d_pred_arr = sess.run([train_op, im, p2d_gt, p2d_pred])
                 
-                p2d = convert_heatmaps_to_p2d(heatmaps_pred[0])
                 image = ((images[0]+1)*128.0).transpose(1,2,0).astype("uint8") # unnormalize, put in channels_last format and cast to uint8
                 img = Image.fromarray(image, "RGB")
-                img = img.resize(heatmaps_pred[0,0].shape)
-                save_p2d_image(np.array(img), p2d, "train_sample", i)
+#                img = img.resize(heatmaps_pred[0,0].shape)
+                save_p2d_image(np.array(img), p2d_gt_arr[0], p2d_pred_arr[0], "train_sample", i+1)
             
             elif i % LOG_ITER_FREQ == 0:
                 _, summary = sess.run([train_op, merged])

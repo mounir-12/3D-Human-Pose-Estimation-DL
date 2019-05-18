@@ -57,11 +57,18 @@ class StackedHourglass:
         # since output_shape != input_shape (in paper, 256*256 input, 64*64 output), we compute the scaling factor along H and W
         self.scale_H = tf.cast(tf.shape(final_output)[2] / tf.shape(inp)[2], tf.float32) # scale along H
         self.scale_W = tf.cast(tf.shape(final_output)[3] / tf.shape(inp)[3], tf.float32) # scale along W
+        
+        batch_size = tf.shape(inp)[0]
+        self.scale = tf.tile(tf.reshape(tf.stack([self.scale_W, self.scale_H]), [1,1,2]), [batch_size, self.nb_joins, 1]) # tensor to rescale 2d poses to match output resolution 
+                                                                                                                          # (i,e the scaling from input to output)
+        p2d_pred_scaled_down = tf.map_fn(self.heatmaps_2d_to_pose, final_output) # transform each set of heatmaps in the batch to 
+        
+        p2d_pred = p2d_pred_scaled_down / self.scale # divide by scale to scale up joints positions to input resolution
+        self.p2d_pred = p2d_pred
 
-        # TODO: extract 2d pose points from heatmaps
         print("\n\nBuilt the model in {} s\n\n".format(time.time()-a))
 
-        return outputs
+        return outputs, p2d_pred # return all heatmaps of all hourglasses and the p2d predicted from the final_output
             
         
         
@@ -82,11 +89,11 @@ class StackedHourglass:
         
         return up_branch + low_branch
         
-    def pose_to_2d_heatmap(self, p2d, H, W):
+    def pose_to_2d_heatmap(self, p2d, H, W): # expects a batch of poses
         p2d = tf.reshape(p2d, [-1, self.nb_joins, 2])
         return tf.map_fn(lambda joints: self.joints_to_2d_heatmap(joints, H, W), p2d) 
         
-    def joints_to_2d_heatmap(self, joints, H, W):
+    def joints_to_2d_heatmap(self, joints, H, W): # expects only 1 pose (i,e the 17 joints)
         joints = tf.reshape(joints, [-1, 2])
         return tf.map_fn(lambda joint: self.gaussian_2d(joint, self.var, H, W), joints)
     
@@ -106,11 +113,16 @@ class StackedHourglass:
         prob = tf.reshape(gaussian.prob(idx)/z, tf.shape(X)) # create unnormalized gaussian
         return prob
         
+    def heatmaps_2d_to_pose(self, heatmaps): # expects 1 set of heatmaps (i,e not a batch, but 17 heatmaps, one per joint)
+        return tf.map_fn(lambda a: tf.cast(tf.unravel_index(
+                            tf.argmax(tf.reshape(a, [-1]), output_type=tf.int32), tf.shape(a)), tf.float32)
+                  , heatmaps) # for each heatmap array "a", flatten array then get argmax index in flattened array then convert flat_index back to 2d index using unravel_index then cast 2d index 
+                              # to float32
+                                                                                                                                            
+        
     def compute_loss(self, p2d_gt, all_heatmaps_pred):
         # we need to scale the ground-truth joints positions to account for the scaling from input to output image
-        batch_size = tf.shape(p2d_gt)[0]
-        scale = tf.tile(tf.reshape(tf.stack([self.scale_W, self.scale_H]), [1,1,2]), [batch_size, self.nb_joins, 1])
-        p2d_gt_scaled = p2d_gt*scale # multiply each joint by the scale
+        p2d_gt_scaled = p2d_gt*self.scale # multiply each joint by the scale
         
         heatmaps_gt = self.pose_to_2d_heatmap(p2d_gt_scaled, tf.shape(self.final_output)[2], tf.shape(self.final_output)[3])  # create a 2d gaussian heatmap from the scaled ground truth with same 
         

@@ -21,15 +21,21 @@ def convert_heatmaps_to_p2d(heatmaps):
         p2d[i] = np.unravel_index(heatmap.argmax(), heatmap.shape)
     return p2d
 
-def save_p2d_image(image, p2d, dir_name, i):
+def save_p2d_image(image, p2d_gt, p2d_pred, dir_name, i):
     if not os.path.exists(dir_name):
         os.makedirs(dir_name)
     image_p2d = image
-    for joint_id in range( p2d.shape[0]): # mark all 2D joint on the image
-        joint = ( int(p2d[joint_id,0]),int(p2d[joint_id,1])) # 2D coordinates of the joint
-        image_p2d = cv2.circle(image_p2d, joint, 1, (0,255,0),-1) # put a circle marker at the position of the joint in the image
-    img = Image.fromarray(image, "RGB")
-    img.save(os.path.join(dir_name, "img{}.png".format(i)))
+    
+    for joint in p2d_gt: # mark all 2D ground truth joints on the image
+        joint = (int(joint[0]), int(joint[1]))
+        image_p2d = cv2.circle(image_p2d, joint, 3, (255,0,0),-1) # put a red circle marker at the position of the joint in the image
+        
+    for joint in p2d_pred: # mark all predicted 2D joints on the image
+        joint = (int(joint[0]), int(joint[1])) # 2D coordinates of the joint
+        image_p2d = cv2.circle(image_p2d, joint, 3, (0,255,0),-1) # put a green circle marker at the position of the joint in the image
+        
+    img = Image.fromarray(image_p2d, "RGB")
+    img.save(os.path.join(dir_name, "img_{}.png".format(i)))
     
 def compute_MPJPE(p3d_out,p3d_gt,p3d_std):
 
