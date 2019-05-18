@@ -12,18 +12,19 @@ current/future students or other parties.
 
 import tensorflow as tf
 import numpy as np
-import os
+import os, sys
 from tqdm import trange
-from utils import compute_MPJPE,normalize_pose
+from utils import compute_MPJPE,normalize_pose_3d, normalize_pose_2d
 from data import create_dataloader_train
 import resnet_model
 from hourglass2D_model import StackedHourglass
+import time
 
 NUM_SAMPLES= 312188
 
 # Hyper parameters
 NUM_EPOCHS = 5
-BATCH_SIZE = 64
+BATCH_SIZE = 4
 LEARNING_RATE = 0.003
 LOG_ITER_FREQ = 10
 SAVE_ITER_FREQ = 2000
@@ -42,32 +43,37 @@ config = tf.ConfigProto()
 config.gpu_options.allow_growth = True
 config.gpu_options.visible_device_list = "0"
 with tf.Session(config=config) as sess:
-    # load image and GT 3d pose
-    im, p3d_gt = create_dataloader_train(data_root=DATA_PATH, batch_size=BATCH_SIZE) # get the pair and split it (i,e unzip the tuple)
-
-    # load mean and std
-    p3d_mean = np.loadtxt(os.path.join(DATA_PATH,'annot',"mean.txt")).reshape([1,17,3]).astype(np.float32)
-    p3d_std = np.loadtxt(os.path.join(DATA_PATH,'annot',"std.txt")).reshape([1,17,3]).astype(np.float32)
-
-    p3d_std = tf.constant(p3d_std)
-    p3d_mean = tf.constant(p3d_mean)
-
-    p3d_std = tf.tile(p3d_std,[BATCH_SIZE,1,1]) # repeat batch_size times along 0th dim
-    p3d_mean = tf.tile(p3d_mean,[BATCH_SIZE,1,1]) # repeat batch_size times along 0th dim
-
-    # normalize 3d pose
-    p3d_gt = normalize_pose(p3d_gt,p3d_mean,p3d_std)
-
-    # define resnet model
-    model = StackedHourglass()
-
-    # predict 3d pose
-    p3d_out = model(im, training=True)
     
+    # load dataset of batched pairs (image, pose), means and stddev
+    dataset, p2d_mean, p2d_std = create_dataloader_train(data_root=DATA_PATH, batch_size=BATCH_SIZE, data_to_load="pose2d", shuffle=False)
+    im, p2d_gt = dataset # split the pairs (i,e unzip the tuple). When running one, the other also moves to the next elem (i,e same iterator)
+        
+    # mean and std
+#    p2d_mean = p2d_mean.reshape([1,17,2]).astype(np.float32)
+#    p2d_std = p2d_std.reshape([1,17,2]).astype(np.float32)
+
+#    p2d_std = tf.constant(p2d_std)
+#    p2d_mean = tf.constant(p2d_mean)
+
+#    p2d_std = tf.tile(p2d_std,[BATCH_SIZE,1,1]) # repeat batch_size times along 0th dim
+#    p2d_mean = tf.tile(p2d_mean,[BATCH_SIZE,1,1]) # repeat batch_size times along 0th dim
+
+#    # normalize 2d pose
+#    p2d_gt = normalize_pose_2d(p2d_gt,p2d_mean,p2d_std)
+
+    # define model
+    model = StackedHourglass()
+    
+    # build the model
+    a = time.time()
+    model(im, p2d_gt, training=True)
+    
+    print("time spent:", time.time()-a)
+    sys.exit(0)
     print("success!!\n\n")
 
     # compute loss
-    loss = tf.losses.absolute_difference(p3d_gt, p3d_out)
+    p2d_out, loss = tf.losses.absolute_difference(p3d_gt, p3d_out)
 
     # define trainer
     update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS) # for batch norm

@@ -60,8 +60,16 @@ def get_data_shapes(phase):
             
     print(phase, "labels shapes (2d):", labels_shapes_2d, "and count:", c)
     
+def print_root_joints(nb, data_to_read="pose2d"):
+    annotations_path = os.path.join(data_root,"annot","train.h5")
+    annotations = h5py.File(annotations_path, 'r')
     
-get_data_shapes("train")
-get_data_shapes("valid")
+    for i in range(nb):
+        print(annotations[data_to_read][i][0])
+    
+#get_data_shapes("train")
+#get_data_shapes("valid")
+
+print_root_joints(20)
 
 

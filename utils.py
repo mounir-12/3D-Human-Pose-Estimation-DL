@@ -26,8 +26,8 @@ def compute_MPJPE(p3d_out,p3d_gt,p3d_std):
 
     return mpjpe
 
-def normalize_pose(p3d,p3d_mean, p3d_std):
-
+def normalize_pose_3d(p3d,p3d_mean, p3d_std):
+    # p3d of dimension [batch_size, nb_joints, nb_coordinates]
     root = tf.tile( tf.expand_dims(p3d[:,0,:],axis=1), [1,17,1]) # extracting the root joints via p3d[:,0,:] reduces the dimension by 1,
                                                                  # tf.expand_dims() just reshapes the result to put back this dimension
                                                                  # tf.tile() to replicate the root's coordinates j times j=#joints=17
@@ -36,8 +36,28 @@ def normalize_pose(p3d,p3d_mean, p3d_std):
     p3d = (p3d-p3d_mean) / p3d_std
     p3d = tf.reshape(p3d, [-1, 51])
     return p3d
+    
+def normalize_pose_2d(p2d, p2d_mean, p2d_std):
+    root = tf.tile( tf.expand_dims(p2d[:,0,:],axis=1), [1,17,1])
+    p2d = p2d - root
+    p2d = (p2d - p2d_mean) / p2d_std
+    p2d = tf.reshape(p2d, [-1, 34])
+    return p2d
 
-def unnormalize_pose(p3d,p3d_mean, p3d_std):
+def unnormalize_pose_3d(p3d,p3d_mean, p3d_std):
+
+    b = tf.shape(p3d)[0] # batch_size
+
+    p2d_17x2 = tf.reshape(p3d, [-1, 17, 2])
+    root = p2d_17x2[:,0,:]
+    root = tf.expand_dims(root,axis=1)
+    root = tf.tile(root,[1,17,1])
+    p3d_17x3 = p3d_17x3 - root
+    p3d_17x3 = p3d_17x3 * p3d_std[:b,...] + p3d_mean[:b,...]
+    p3d = tf.reshape(p3d_17x3, [-1,51])
+    return p3d
+    
+def unnormalize_pose_3d(p3d,p3d_mean, p3d_std):
 
     b = tf.shape(p3d)[0]
 

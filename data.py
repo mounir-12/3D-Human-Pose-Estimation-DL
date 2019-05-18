@@ -13,8 +13,9 @@ current/future students or other parties.
 import tensorflow as tf
 import h5py
 import os
-
-
+import numpy as np
+from scipy.stats import multivariate_normal
+ 
 def preprocess_image(image):
     image = tf.image.decode_jpeg(image, channels=3)
     image = tf.cast(image,tf.float32) / 128. - 1
@@ -32,16 +33,20 @@ def load_and_preprocess_image(path):
     image = preprocess_image(image)
     return image
 
-def create_dataloader_train(data_root, batch_size):
+def create_dataloader_train(data_root, batch_size, data_to_load="pose3d", shuffle=True):
     phase = "train"
     all_image_paths = open(os.path.join(data_root,"annot","%s_images.txt"%phase)).readlines() # read all lines ('\n' included)
     all_image_paths = [os.path.join(data_root, "images", path[:-1]) for path in all_image_paths] # construct paths removing '\n'
 
     annotations_path = os.path.join(data_root,"annot","%s.h5"%phase)
     annotations = h5py.File(annotations_path, 'r')
-
-    image_pose_ds = tf.data.Dataset.from_tensor_slices((all_image_paths, annotations['pose3d'])) # dataset of zipped paths and 3D poses (i,e tuples)
-    image_pose_ds = image_pose_ds.shuffle(buffer_size=len(all_image_paths)) # shuffle
+    
+    means = np.mean(annotations[data_to_load], axis=0).flatten()
+    std = np.std(annotations[data_to_load], axis=0).flatten()
+    
+    image_pose_ds = tf.data.Dataset.from_tensor_slices((all_image_paths, annotations[data_to_load])) # dataset of zipped paths and 3D poses (i,e tuples)
+    if shuffle:
+        image_pose_ds = image_pose_ds.shuffle(buffer_size=len(all_image_paths)) # shuffle
     image_pose_ds = image_pose_ds.map(load_and_preprocess_image_and_pose) # load images
 
     image_pose_ds = image_pose_ds.repeat() # repeat dataset indefinitely
@@ -50,7 +55,7 @@ def create_dataloader_train(data_root, batch_size):
     iterator = image_pose_ds.make_one_shot_iterator() # create iterator
     dataloader = iterator.get_next() # object to get the next element every time we run it in a session
 
-    return dataloader
+    return dataloader, means, std
 
 
 def create_dataloader_test(data_root, batch_size):
@@ -67,3 +72,10 @@ def create_dataloader_test(data_root, batch_size):
     dataloader = iterator.get_next()
 
     return dataloader
+
+
+
+
+
+
+
