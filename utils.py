@@ -12,9 +12,25 @@ current/future students or other parties.
 
 import tensorflow as tf
 import numpy as np
-import patoolib
+import patoolib, os, cv2
+from PIL import Image
 
+def convert_heatmaps_to_p2d(heatmaps):
+    p2d = np.empty([heatmaps.shape[0], 2])
+    for i, heatmap in enumerate(heatmaps):
+        p2d[i] = np.unravel_index(heatmap.argmax(), heatmap.shape)
+    return p2d
 
+def save_p2d_image(image, p2d, dir_name, i):
+    if not os.path.exists(dir_name):
+        os.makedirs(dir_name)
+    image_p2d = image
+    for joint_id in range( p2d.shape[0]): # mark all 2D joint on the image
+        joint = ( int(p2d[joint_id,0]),int(p2d[joint_id,1])) # 2D coordinates of the joint
+        image_p2d = cv2.circle(image_p2d, joint, 1, (0,255,0),-1) # put a circle marker at the position of the joint in the image
+    img = Image.fromarray(image, "RGB")
+    img.save(os.path.join(dir_name, "img{}.png".format(i)))
+    
 def compute_MPJPE(p3d_out,p3d_gt,p3d_std):
 
     p3d_out_17x3 = tf.reshape(p3d_out, [-1, 17, 3])

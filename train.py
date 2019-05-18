@@ -14,7 +14,7 @@ import tensorflow as tf
 import numpy as np
 import os, sys
 from tqdm import trange
-from utils import compute_MPJPE,normalize_pose_3d, normalize_pose_2d
+from utils import compute_MPJPE,normalize_pose_3d, normalize_pose_2d, convert_heatmaps_to_p2d, save_p2d_image
 from data import create_dataloader_train
 import resnet_model
 from hourglass2D_model import StackedHourglass
@@ -25,7 +25,7 @@ NUM_SAMPLES= 312188
 
 # Hyper parameters
 NUM_EPOCHS = 5
-BATCH_SIZE = 16
+BATCH_SIZE = 8
 LEARNING_RATE = 0.003
 LOG_ITER_FREQ = 10
 SAVE_ITER_FREQ = 2000
@@ -109,18 +109,11 @@ with tf.Session(config=config) as sess:
             if (i+1) % SAMPLE_ITER_FREQ == 0:
                 _, images, heatmaps_pred = sess.run([train_op, im, model.final_output])
                 
+                p2d = convert_heatmaps_to_p2d(heatmaps_pred[0])
                 image = ((images[0]+1)*128.0).transpose(1,2,0).astype("uint8") # unnormalize, put in channels_last format and cast to uint8
                 img = Image.fromarray(image, "RGB")
-                img = img.resize(heatmaps_pred[0,0].shape) # resize input image to have the shape of the heatmaps
-                if not os.path.exists("./train_sample"):
-                    os.makedirs("./train_sample")
-                img.save("./train_sample/img.png")
-                
-                for i,heatmap in enumerate(heatmaps_pred[0]):
-                    print("heatmap {}, min: {}, max: {}".format(i, heatmap.min(), heatmap.max()))
-                    heatmap = (heatmap*255).astype("uint8") # unnormalize, put in channels_last format and cast to uint8
-                    img = Image.fromarray(heatmap)
-                    img.save("./train_sample/img_{}.png".format(i))
+                img = img.resize(heatmaps_pred[0,0].shape)
+                save_p2d_image(np.array(img), p2d, "train_sample", i)
             
             elif i % LOG_ITER_FREQ == 0:
                 _, summary = sess.run([train_op, merged])
