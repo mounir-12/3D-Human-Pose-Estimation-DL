@@ -112,8 +112,8 @@ with tf.Session(config=config) as sess:
             if (i+1) % SAMPLE_ITER_FREQ == 0:
                 _, images, p2d_gt_arr, p2d_pred_arr = sess.run([train_op, im, p2d_gt, p2d_pred])
                 
-                print("GT:", p2d_gt_arr[0])
-                print("Pred:", p2d_pred_arr[0])
+#                print("GT:", p2d_gt_arr[0])
+#                print("Pred:", p2d_pred_arr[0])
                 image = ((images[0]+1)*128.0).transpose(1,2,0).astype("uint8") # unnormalize, put in channels_last format and cast to uint8
                 img = Image.fromarray(image, "RGB")
 #                img = img.resize(heatmaps_pred[0,0].shape)
@@ -127,6 +127,6 @@ with tf.Session(config=config) as sess:
 
             # save model
             if (i+1) % SAVE_ITER_FREQ == 0:
-                saver.save(sess,os.path.join(LOG_PATH,"model"),global_step=i)
+                saver.save(sess,os.path.join(LOG_PATH,"model"),global_step=i+1)
 
     saver.save(sess,os.path.join(LOG_PATH,"model"),global_step=int(NUM_EPOCHS * NUM_SAMPLES / BATCH_SIZE)) # save at the end of training

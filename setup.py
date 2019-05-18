@@ -31,5 +31,6 @@ setup(
                 'opencv-python',
                 'tqdm',
                 'h5py',
+                'Pillow'
         ],
 )
