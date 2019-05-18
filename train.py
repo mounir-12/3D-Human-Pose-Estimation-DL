@@ -19,15 +19,17 @@ from data import create_dataloader_train
 import resnet_model
 from hourglass2D_model import StackedHourglass
 import time
+from PIL import Image
 
 NUM_SAMPLES= 312188
 
 # Hyper parameters
 NUM_EPOCHS = 5
-BATCH_SIZE = 4
+BATCH_SIZE = 16
 LEARNING_RATE = 0.003
 LOG_ITER_FREQ = 10
 SAVE_ITER_FREQ = 2000
+SAMPLE_ITER_FREQ = 100
 
 # Path
 LOG_PATH = "./log/example/"
@@ -62,31 +64,29 @@ with tf.Session(config=config) as sess:
 #    p2d_gt = normalize_pose_2d(p2d_gt,p2d_mean,p2d_std)
 
     # define model
-    model = StackedHourglass()
+    model = StackedHourglass(nb_stacks=1)
     
     # build the model
     a = time.time()
-    model(im, p2d_gt, training=True)
+    all_heatmaps_pred = model(im, training=True)
     
-    print("time spent:", time.time()-a)
-    sys.exit(0)
-    print("success!!\n\n")
-
     # compute loss
-    p2d_out, loss = tf.losses.absolute_difference(p3d_gt, p3d_out)
-
+    loss = model.compute_loss(p2d_gt, all_heatmaps_pred)
+    
     # define trainer
-    update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS) # for batch norm
-    with tf.control_dependencies(update_ops):
-        train_op = tf.train.MomentumOptimizer(learning_rate=LEARNING_RATE,momentum=0.9).minimize(loss)
+    train_op, global_step = model.get_train_op(loss)
+    
+#    print("time spent:", time.time()-a)
+#    sys.exit(0)
+#    print("success!!\n\n")
 
     # compute MPJPE
-    mpjpe = compute_MPJPE(p3d_out,p3d_gt,p3d_std)
+#    mpjpe = compute_MPJPE(p3d_out,p3d_gt,p3d_std)
 
     # visualization related
     tf.summary.scalar("loss", loss)
-    tf.summary.scalar("mpjpe", mpjpe)
-    tf.summary.image("input", im, max_outputs=4)
+#    tf.summary.scalar("mpjpe", mpjpe)
+#    tf.summary.image("input", im, max_outputs=4)
     merged = tf.summary.merge_all()
     train_writer = tf.summary.FileWriter(LOG_PATH, sess.graph)
 
@@ -106,11 +106,27 @@ with tf.Session(config=config) as sess:
             t.set_postfix(epoch=epoch_cur,iter_percent="%d %%"%(iter_cur/float(NUM_SAMPLES)*100) ) # update displayed info, iter_percent = percentage of completion of current iteration (i,e epoch)
 
             # vis
-            if i % LOG_ITER_FREQ == 0:
-                _, summary = sess.run([train_op, merged],feed_dict={learning_rate: LEARNING_RATE})
+            if (i+1) % SAMPLE_ITER_FREQ == 0:
+                _, images, heatmaps_pred = sess.run([train_op, im, model.final_output])
+                
+                image = ((images[0]+1)*128.0).transpose(1,2,0).astype("uint8") # unnormalize, put in channels_last format and cast to uint8
+                img = Image.fromarray(image, "RGB")
+                img = img.resize(heatmaps_pred[0,0].shape) # resize input image to have the shape of the heatmaps
+                if not os.path.exists("./train_sample"):
+                    os.makedirs("./train_sample")
+                img.save("./train_sample/img.png")
+                
+                for i,heatmap in enumerate(heatmaps_pred[0]):
+                    print("heatmap {}, min: {}, max: {}".format(i, heatmap.min(), heatmap.max()))
+                    heatmap = (heatmap*255).astype("uint8") # unnormalize, put in channels_last format and cast to uint8
+                    img = Image.fromarray(heatmap)
+                    img.save("./train_sample/img_{}.png".format(i))
+            
+            elif i % LOG_ITER_FREQ == 0:
+                _, summary = sess.run([train_op, merged])
                 train_writer.add_summary(summary, i)
             else:
-                _, = sess.run([train_op],feed_dict={learning_rate: LEARNING_RATE})
+                _, = sess.run([train_op])
 
             # save model
             if i % SAVE_ITER_FREQ == 0:

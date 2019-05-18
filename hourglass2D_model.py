@@ -1,10 +1,10 @@
 import tensorflow as tf
 from layers import *
 from PIL import Image
-import os
+import os, time
 
 class StackedHourglass:
-    def __init__(self, nb_joins=17, nb_channels=256, nb_modules=1, hourglass_half_size=4, nb_stacks=1, var=1):
+    def __init__(self, nb_joins=17, nb_channels=256, nb_modules=1, hourglass_half_size=4, nb_stacks=1, sigma=1):
         self.dtype = tf.float32 # data type to use
         
 #        self.images_shape = (3, 256, 256) # the shape of input image with channels first (here: 3*256*256)
@@ -13,15 +13,17 @@ class StackedHourglass:
         self.nb_modules = nb_modules # nb of residual modules stacked in 1 residual block (which is the basic block in the network)
         self.n = hourglass_half_size # nb of residual blocks applied till the center of the hourglass
         self.nb_stacks = nb_stacks # nb of hourglasses stacked in the network
-        self.var = var # the variance used in each of the height and width axes for the gaussian heatmap
+        self.var = sigma**2 # the variance used in each of the height and width axes for the gaussian heatmap
         
 #        self.batch_shape = list(self.images_shape).copy() # copy shape
 #        self.batch_shape.insert(0, None) # prepend None for variable batch size
         
-    def __call__(self, inp, p2d_gt, training=False):
+    def __call__(self, inp, training=False):
+        a = time.time()
 #        self.inp = tf.placeholder(self.dtype, shape=self.batch_shape) # the input batch of images
 #        self.training = tf.placeholder(tf.bool) # boolean used in batch_normalization layer, is True when training and False when predicting
         
+        self.inp = inp
         conv1 = conv_layer(inp, 64, (7, 7), (2, 2), (3, 3)) # image size goes from 256*256 to 128*128, 64 channels
         relu1 = relu_layer(batch_norm_layer(conv1, training)) # apply batch norm then relu
         res1 = residual_hg(relu1, 128, training) # produce 128 channels from 64 channels
@@ -50,32 +52,16 @@ class StackedHourglass:
         self.outputs = outputs
         
         final_output = outputs[-1]
+        self.final_output = final_output
         
-        # since output_shape != input_shape (in paper, 256*256 input, 64*64 output), we need to scale the ground-truth joints positions to account for the scaling from input to output image
-        scale_H = tf.cast(tf.shape(final_output)[2] / tf.shape(inp)[2], tf.float32) # scale along H
-        scale_W = tf.cast(tf.shape(final_output)[3] / tf.shape(inp)[3], tf.float32) # scale along W
+        # since output_shape != input_shape (in paper, 256*256 input, 64*64 output), we compute the scaling factor along H and W
+        self.scale_H = tf.cast(tf.shape(final_output)[2] / tf.shape(inp)[2], tf.float32) # scale along H
+        self.scale_W = tf.cast(tf.shape(final_output)[3] / tf.shape(inp)[3], tf.float32) # scale along W
 
-        batch_size = tf.shape(p2d_gt)[0]
-        scale = tf.tile(tf.reshape(tf.stack([scale_W, scale_H]), [1,1,2]), [batch_size, self.nb_joins, 1])
-        p2d_gt_scaled = p2d_gt*scale # multiply each joint by the scale
-        
-        heatmaps_gt = self.pose_to_2d_heatmap(p2d_gt_scaled, tf.shape(final_output)[2], tf.shape(final_output)[3])  # create a 2d gaussian heatmap from the scaled ground truth with same 
-                                                                                                                    # size as final_output
-        self.loss = self.compute_loss(heatmaps_gt, final_output)
-        
-#        with tf.Session() as sess:
-#            sess.run(tf.global_variables_initializer())
-#            heatmaps_gt_arr, inp_arr = sess.run([heatmaps_gt, inp])
-#            image = ((inp_arr[0]+1)*128.0).transpose(1,2,0).astype("uint8") # unnormalize, put in channels_last format and cast to uint8
-#            img = Image.fromarray(image, "RGB")
-#            img = img.resize(heatmaps_gt_arr[0,0].shape) # resize input image to have the shape of the heatmaps
-#            if not os.path.exists("./sample"):
-#                os.makedirs("./sample")
-#            img.save("./sample/img.png")
-#            for i,heatmap in enumerate(heatmaps_gt_arr[0]):
-#                heatmap = (heatmap*255).astype("uint8") # unnormalize, put in channels_last format and cast to uint8
-#                img = Image.fromarray(heatmap)
-#                img.save("./sample/img_{}.png".format(i))
+        # TODO: extract 2d pose points from heatmaps
+        print("\n\nBuilt the model in {} s\n\n".format(time.time()-a))
+
+        return outputs
             
         
         
@@ -120,9 +106,46 @@ class StackedHourglass:
         prob = tf.reshape(gaussian.prob(idx)/z, tf.shape(X)) # create unnormalized gaussian
         return prob
         
-    def compute_loss(self, heatmaps_gt, predictions):
-        return tf.losses.mean_squared_error(heatmaps_gt, predictions)
+    def compute_loss(self, p2d_gt, all_heatmaps_pred):
+        # we need to scale the ground-truth joints positions to account for the scaling from input to output image
+        batch_size = tf.shape(p2d_gt)[0]
+        scale = tf.tile(tf.reshape(tf.stack([self.scale_W, self.scale_H]), [1,1,2]), [batch_size, self.nb_joins, 1])
+        p2d_gt_scaled = p2d_gt*scale # multiply each joint by the scale
+        
+        heatmaps_gt = self.pose_to_2d_heatmap(p2d_gt_scaled, tf.shape(self.final_output)[2], tf.shape(self.final_output)[3])  # create a 2d gaussian heatmap from the scaled ground truth with same 
+        
+        total_loss = 0
+        for heatmaps_pred in all_heatmaps_pred:
+            loss = tf.losses.mean_squared_error(heatmaps_gt, heatmaps_pred)
+            total_loss += loss
+        self.loss = total_loss
+        
+#        with tf.Session() as sess:
+#            sess.run(tf.global_variables_initializer())
+#            print("\n\nloss:", sess.run(self.loss), "\n\n")
+#        with tf.Session() as sess:
+#            sess.run(tf.global_variables_initializer())
+#            heatmaps_gt_arr, inp_arr = sess.run([heatmaps_gt, self.inp])
+#            image = ((inp_arr[0]+1)*128.0).transpose(1,2,0).astype("uint8") # unnormalize, put in channels_last format and cast to uint8
+#            img = Image.fromarray(image, "RGB")
+#            img = img.resize(heatmaps_gt_arr[0,0].shape) # resize input image to have the shape of the heatmaps
+#            if not os.path.exists("./sample"):
+#                os.makedirs("./sample")
+#            img.save("./sample/img.png")
+#            for i,heatmap in enumerate(heatmaps_gt_arr[0]):
+#                print("heatmap {}, min: {}, max: {}".format(i, heatmap.min(), heatmap.max()))
+#                heatmap = (heatmap*255).astype("uint8") # unnormalize, put in channels_last format and cast to uint8
+#                img = Image.fromarray(heatmap)
+#                img.save("./sample/img_{}.png".format(i))
+                
+        return total_loss
             
+    def get_train_op(self, loss, learning_rate=0.001):
+        self.global_step = tf.Variable(0, name='global_step',trainable=False)
+        update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS) # for batch norm
+        with tf.control_dependencies(update_ops):
+            self.train_op = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(loss, self.global_step)
+        return self.train_op, self.global_step
         
 
         
