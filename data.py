@@ -32,7 +32,7 @@ def load_and_preprocess_image(path):
     image = preprocess_image(image)
     return image
 
-def create_dataloader_train(data_root, batch_size, data_to_load="pose3d", shuffle=True):
+def create_dataloader_train(data_root, batch_size, batches_to_prefetch=1000, data_to_load="pose3d", shuffle=True):
     phase = "train"
     all_image_paths = open(os.path.join(data_root,"annot","%s_images.txt"%phase)).readlines() # read all lines ('\n' included)
     all_image_paths = [os.path.join(data_root, "images", path[:-1]) for path in all_image_paths] # construct paths removing '\n'
@@ -50,7 +50,7 @@ def create_dataloader_train(data_root, batch_size, data_to_load="pose3d", shuffl
 
     image_pose_ds = image_pose_ds.repeat() # repeat dataset indefinitely
     image_pose_ds = image_pose_ds.batch(batch_size, drop_remainder=True) # batch data
-    image_pose_ds.prefetch(20*batch_size)
+    image_pose_ds.prefetch(batches_to_prefetch)
     
     iterator = image_pose_ds.make_one_shot_iterator() # create iterator
     dataloader = iterator.get_next() # object to get the next element every time we run it in a session

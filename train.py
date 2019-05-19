@@ -38,6 +38,7 @@ SIGMA=1
 # Data parameters
 SHUFFLE=True
 DATA_TO_LOAD="pose2d"
+BATCHES_TO_PREFETCH=2000
 
 # Paths
 CURR_DIR = "."
@@ -55,7 +56,7 @@ config.gpu_options.visible_device_list = "0"
 with tf.Session(config=config) as sess:
     
     # load dataset of batched pairs (image, pose), means and stddev
-    dataset, p2d_mean, p2d_std = create_dataloader_train(data_root=DATA_PATH, batch_size=BATCH_SIZE, data_to_load=DATA_TO_LOAD, shuffle=SHUFFLE)
+    dataset, p2d_mean, p2d_std = create_dataloader_train(data_root=DATA_PATH, batch_size=BATCH_SIZE, batches_to_prefetch=BATCHES_TO_PREFETCH data_to_load=DATA_TO_LOAD, shuffle=SHUFFLE)
     im, p2d_gt = dataset # split the pairs (i,e unzip the tuple). When running one, the other also moves to the next elem (i,e same iterator)
 
     # define model
