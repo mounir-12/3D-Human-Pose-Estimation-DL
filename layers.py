@@ -36,6 +36,7 @@ def max_pool_layer(inp, pool_size=1, strides=1, padding="valid"):
     return tf.layers.max_pooling2d(inp, pool_size=pool_size, strides=strides, padding=padding, data_format="channels_first")
     
 def nearest_neighbor_up_sampling_layer(inp, factor):
+#    return tf.keras.layers.UpSampling2D(size=factor, data_format="channels_first", interpolation='nearest').apply(inp)
     inp = tf.transpose(inp, [0, 2, 3, 1]) # convert to channels_last format
     
     new_H = tf.shape(inp)[1] * factor[0] # the new heigh

@@ -14,14 +14,21 @@ import tensorflow as tf
 import numpy as np
 import patoolib, os, cv2
 from PIL import Image
+import datetime, time
 
+def timestamp():
+    return datetime.datetime.fromtimestamp(time.time()).strftime("%Y.%m.%d-%H:%M:%S")
+
+def get_time():
+    return time.time()
+    
 def convert_heatmaps_to_p2d(heatmaps):
     p2d = np.empty([heatmaps.shape[0], 2])
     for i, heatmap in enumerate(heatmaps):
         p2d[i] = np.flip(np.unravel_index(heatmap.argmax(), heatmap.shape), axis=0)
     return p2d
 
-def save_p2d_image(image, p2d_gt, p2d_pred, dir_name, index):
+def save_p2d_image(image, p2d_gt, p2d_pred, dir_name, index, radius=3):
     if not os.path.exists(dir_name):
         os.makedirs(dir_name)
     image_p2d = image
@@ -34,11 +41,11 @@ def save_p2d_image(image, p2d_gt, p2d_pred, dir_name, index):
              ]
     for i, joint in enumerate(p2d_gt): # mark all 2D ground truth joints on the image
         joint = (int(joint[0]), int(joint[1]))
-        image_p2d = cv2.circle(image_p2d, joint, 3, colors[i],-1) # put a circle marker at the position of the joint in the image
+        image_p2d = cv2.circle(image_p2d, joint, radius, colors[i],-1) # put a circle marker at the position of the joint in the image
         
     for i, joint in enumerate(p2d_pred): # mark all predicted 2D joints on the image
-        pt1 = (int(joint[0]) - 3 , int(joint[1]) - 3) # 2D coordinates of rectangle corner
-        pt2 = (int(joint[0]) + 3 , int(joint[1]) + 3) # 2D coordinates of opposite rectangle corner
+        pt1 = (int(joint[0]) - radius , int(joint[1]) - radius) # 2D coordinates of rectangle corner
+        pt2 = (int(joint[0]) + radius , int(joint[1]) + radius) # 2D coordinates of opposite rectangle corner
         image_p2d = cv2.rectangle(image_p2d, pt1, pt2, colors[i],-1) # put a rectangle/square marker centered at the position of the joint in the image
         
     img = Image.fromarray(image_p2d, "RGB")

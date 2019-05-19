@@ -50,7 +50,8 @@ def create_dataloader_train(data_root, batch_size, data_to_load="pose3d", shuffl
 
     image_pose_ds = image_pose_ds.repeat() # repeat dataset indefinitely
     image_pose_ds = image_pose_ds.batch(batch_size, drop_remainder=True) # batch data
-
+    image_pose_ds.prefetch(20*batch_size)
+    
     iterator = image_pose_ds.make_one_shot_iterator() # create iterator
     dataloader = iterator.get_next() # object to get the next element every time we run it in a session
 
