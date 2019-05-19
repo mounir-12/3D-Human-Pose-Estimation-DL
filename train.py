@@ -25,7 +25,7 @@ NUM_SAMPLES= 312188
 
 # Train parameters
 NUM_EPOCHS = 1
-BATCH_SIZE = 8
+BATCH_SIZE = 4
 LEARNING_RATE = 0.001
 LOG_ITER_FREQ = 50
 SAVE_ITER_FREQ = 2000
@@ -38,7 +38,7 @@ SIGMA=1
 # Data parameters
 SHUFFLE=True
 DATA_TO_LOAD="pose2d"
-BATCHES_TO_PREFETCH=2000
+BATCHES_TO_PREFETCH=100
 
 # Paths
 CURR_DIR = "."
@@ -64,10 +64,12 @@ with tf.Session(config=config) as sess:
     
     # build the model
     all_heatmaps_pred, p2d_pred = model(im, training=True)
+#    sys.exit(0)
     
     # compute loss
     loss = model.compute_loss(p2d_gt, all_heatmaps_pred)
-    
+#    sys.exit(0)
+
     # define trainer
     train_op, global_step = model.get_train_op(loss, learning_rate=LEARNING_RATE)
 #    sys.exit(0)
