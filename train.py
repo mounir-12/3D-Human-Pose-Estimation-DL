@@ -38,7 +38,7 @@ SIGMA=1
 # Data parameters
 SHUFFLE=True
 DATA_TO_LOAD="pose2d"
-BATCHES_TO_PREFETCH=100
+BATCHES_TO_PREFETCH=300
 
 # Paths
 CURR_DIR = "."
@@ -113,4 +113,4 @@ with tf.Session(config=config) as sess:
             if (i+1) % SAVE_ITER_FREQ == 0:
                 saver.save(sess,os.path.join(CHECKPOINTS_PATH,"model"),global_step=i+1)
 
-    saver.save(sess,os.path.join(LOG_PATH,"model"),global_step=int(NUM_EPOCHS * NUM_SAMPLES / BATCH_SIZE)) # save at the end of training
+    saver.save(sess,os.path.join(CHECKPOINTS_PATH,"model"),global_step=int(NUM_EPOCHS * NUM_SAMPLES / BATCH_SIZE)) # save at the end of training
