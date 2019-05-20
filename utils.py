@@ -39,9 +39,11 @@ def save_p2d_image(image, p2d_gt, p2d_pred, dir_name, index, radius=3):
               (240, 50, 230), (250, 190, 190), (0, 128, 128), (230, 190, 255), (170, 110, 40), 
               (255, 250, 200), (128, 0, 0), (0, 0, 128), (128, 128, 128)
              ]
-    for i, joint in enumerate(p2d_gt): # mark all 2D ground truth joints on the image
-        joint = (int(joint[0]), int(joint[1]))
-        image_p2d = cv2.circle(image_p2d, joint, radius, colors[i],-1) # put a circle marker at the position of the joint in the image
+             
+    if p2d_gt is not None: # if ground truth available (e,g during training) them mark them
+        for i, joint in enumerate(p2d_gt): # mark all 2D ground truth joints on the image
+            joint = (int(joint[0]), int(joint[1]))
+            image_p2d = cv2.circle(image_p2d, joint, radius, colors[i],-1) # put a circle marker at the position of the joint in the image
         
     for i, joint in enumerate(p2d_pred): # mark all predicted 2D joints on the image
         pt1 = (int(joint[0]) - radius , int(joint[1]) - radius) # 2D coordinates of rectangle corner
@@ -106,7 +108,7 @@ def unnormalize_pose_3d(p3d,p3d_mean, p3d_std):
     p3d = tf.reshape(p3d_17x3, [-1,51])
     return p3d
 
-def generate_submission(predictions, out_path):
+def generate_submission_3d(predictions, out_path):
     ids = np.arange(1, predictions.shape[0] + 1).reshape([-1, 1])
 
     predictions = np.hstack([ids, predictions])
@@ -119,6 +121,22 @@ def generate_submission(predictions, out_path):
         header.append(j + "_x")
         header.append(j + "_y")
         header.append(j + "_z")
+
+    header = ",".join(header)
+    np.savetxt(out_path, predictions, delimiter=',', header=header, comments='')
+    
+def save_2d_pred(predictions, out_path):
+    ids = np.arange(1, predictions.shape[0] + 1).reshape([-1, 1])
+
+    predictions = np.hstack([ids, predictions])
+
+    joints = ['Hip', 'RHip', 'RKnee', 'RFoot', 'LHip', 'LKnee', 'LFoot', 'Spine', 'Thorax', 'Neck/Nose', 'Head',
+              'LShoulder', 'LElbow', 'LWrist', 'RShoulder', 'RElbow', 'RWrist']
+    header = ["Id"]
+
+    for j in joints:
+        header.append(j + "_x")
+        header.append(j + "_y")
 
     header = ",".join(header)
     np.savetxt(out_path, predictions, delimiter=',', header=header, comments='')

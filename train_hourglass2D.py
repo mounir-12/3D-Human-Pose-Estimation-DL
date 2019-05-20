@@ -16,7 +16,6 @@ import os, sys
 from tqdm import trange
 import utils
 from data import create_dataloader_train
-import resnet_model
 from hourglass2D_model import StackedHourglass
 import time
 from PIL import Image
@@ -99,9 +98,9 @@ with tf.Session(config=config) as sess:
                 _, images, p2d_gt_arr, p2d_pred_arr = sess.run([train_op, im, p2d_gt, p2d_pred])
 
                 image = ((images[0]+1)*128.0).transpose(1,2,0).astype("uint8") # unnormalize, put in channels_last format and cast to uint8
-                img = np.asarray(Image.fromarray(image, "RGB")) # necessary conversion for cv2
+                image = np.asarray(Image.fromarray(image, "RGB")) # necessary conversion for cv2
                 save_dir = os.path.join(LOG_PATH, "train_samples")
-                utils.save_p2d_image(img, p2d_gt_arr[0], p2d_pred_arr[0], save_dir, i+1)
+                utils.save_p2d_image(image, p2d_gt_arr[0], p2d_pred_arr[0], save_dir, i+1)
             
             elif (i+1) % LOG_ITER_FREQ == 0:
                 _, summary = sess.run([train_op, merged])

@@ -66,7 +66,7 @@ def create_dataloader_test(data_root, batch_size):
     image_pose_ds = tf.data.Dataset.from_tensor_slices(all_image_paths)
     image_pose_ds = image_pose_ds.map(load_and_preprocess_image)
 
-    image_pose_ds = image_pose_ds.batch(batch_size)
+    image_pose_ds = image_pose_ds.batch(batch_size, drop_remainder=True)
 
     iterator = image_pose_ds.make_one_shot_iterator()
     dataloader = iterator.get_next()
