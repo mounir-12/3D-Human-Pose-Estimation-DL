@@ -3,17 +3,17 @@ from layers import *
 from PIL import Image
 import os, time
 
-class StackedHourglass:
-    def __init__(self, nb_joins=17, nb_channels=256, nb_modules=1, hourglass_half_size=4, nb_stacks=1, sigma=1):
+class C2FStackedHourglass: # Coarse to Fine Stacked Hourglass
+    def __init__(self, nb_joins=17, input_shape=[3,256,256] output_shape=[64,64,64], z_res=[1,2,4,64], sigma=2):
         self.dtype = tf.float32 # data type to use
         
-#        self.images_shape = (3, 256, 256) # the shape of input image with channels first (here: 3*256*256)
+        assert(output_shape[0] == z_res[-1]) # the depth resolutions must be the same
+        self.input_shape = input_shape # the shape of input image with channels first (here: 3*256*256)
+        self.output_shape = output_shape # the shape of the output of the network
         self.nb_joins = nb_joins # nb of joins to be predicted
-        self.nb_channels = nb_channels # nb of channels in the hourglass (expected as input to hourglass and preserved inside it) 
-        self.nb_modules = nb_modules # nb of residual modules stacked in 1 residual block (which is the basic block in the network)
-        self.n = hourglass_half_size # nb of residual blocks applied till the center of the hourglass
-        self.nb_stacks = nb_stacks # nb of hourglasses stacked in the network
-        self.var = sigma**2 # the variance used in each of the height and width axes for the gaussian heatmap
+        self.z_res = z_res # the resolution of the 3D output (and gaussian heatmap) along z-axis for each joint (z_res[i] for hourglass i)
+        self.output_shape = output_shape # the final output shape of the network given as [depth, height, width]
+        self.var = sigma**2 # the variance used in each of the height, width and depth axes for the gaussian heatmap
         
 #        self.batch_shape = list(self.images_shape).copy() # copy shape
 #        self.batch_shape.insert(0, None) # prepend None for variable batch size
@@ -146,15 +146,23 @@ class StackedHourglass:
                 
         return total_loss
         
-    def gaussian_2d(self, mean, var, H, W): # multivariate gaussian with diagonal covariance matrix Sigma = var * I 
-        mean = tf.floor(mean) # move the mean to have one the discrete values (i,e int)
-        
+    def gaussian_3d(self, mean, var_x, var_y, var_z, H, W, D):
+        mu = tf.floor(mean)
+        cov = [ [var_x, 0.0, 0.0], [0.0, var_y, 0.0], [0.0, 0.0, var_z]]
+
+        #Multivariate Normal distribution
+        gaussian = tf.contrib.distributions.MultivariateNormalFullCovariance(
+                   loc=mu,
+                   covariance_matrix=cov)
+
         # Generate a mesh grid to plot the distributions
-        X, Y = tf.meshgrid(tf.range(0.0, W, 1), tf.range(0.0, H, 1))
-        idx = tf.concat([tf.reshape(X, [-1, 1]), tf.reshape(Y,[-1,1])], axis=1)
-        # compute the gaussian over this mesh grid
-        prob = tf.reshape(tf.exp(-tf.reduce_sum(tf.square(idx-mean), axis=1)/(2*var)), tf.shape(X)) # compute unormalized 2D gaussian (so max value is 1) manually and reshape to [H, W]
+        Y, Z, X = tf.meshgrid(tf.range(0.0, H, 1), tf.range(0.0, D, 1), tf.range(0.0, W, 1))
+        idx = tf.concat([tf.reshape(X, [-1, 1]), tf.reshape(Y,[-1,1]), tf.reshape(Z,[-1,1])], axis=1)
+        z = gaussian.prob(mu) # this is 1/normalization_factor
+        prob = tf.reshape(gaussian.prob(idx)/z, [D, H, W]) # create unnormalized gaussian, channels_first
         return prob
+
+
             
     def get_train_op(self, loss, learning_rate=0.001):
         self.global_step = tf.Variable(0, name='global_step',trainable=False)
