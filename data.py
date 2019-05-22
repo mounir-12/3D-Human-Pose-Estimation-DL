@@ -25,7 +25,7 @@ def preprocess_image_resnet50(image, height, width):
     image = tf.image.decode_jpeg(image, channels=3)
     image = tf.image.resize(image, (height, width))
     image = tf.cast(image,tf.float32) / 255.
-    image = tf.transpose(a=image, perm=[2, 0, 1]) # images are read in channels_last format, so convert to channels_first format
+    # image = tf.transpose(a=image, perm=[2, 0, 1]) # images are read in channels_last format, so convert to channels_first format
     return image
 
 
