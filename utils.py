@@ -133,7 +133,7 @@ def plot_3D_pose(channels, ax, title):
     ax.set_zticklabels([])
     
     ax.view_init(elev=-90., azim=-90)
-    ax.set_aspect('equal')
+#    ax.set_aspect('equal')
     ax.set_title(title)
 # ----------------------------------------------------------------------------------------------
     
