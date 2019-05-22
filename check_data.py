@@ -17,39 +17,54 @@ def get_data_shapes(phase):
         print("available", phase, "data", available_data)
     
     # Read all images shapes
-    images_shapes = []
-    for path in all_image_paths:
-        with open(path, "rb") as f: # open image file
-            shape = ()
-            ImPar=ImageFile.Parser() # create image parser
-            chunk = f.read(1024) # read a first chunk of image of size 1024 bytes = 1Kib
-            while chunk != "": # keep reading while the read chunk is not empty
-                ImPar.feed(chunk) # feed the chunk to image parser
-                if ImPar.image: # if not None i,e if the previously read chunk are sufficient to construct the image object with its metadata
-                    channels = 1
-                    if(ImPar.image.mode == "RGB"):
-                        channels = 3
-                    img_size = ImPar.image.size
-                    shape = (img_size[0], img_size[1], channels)
-                    break
-                chunk = f.read(1024) # otherwise read another chunk
-            
-            if shape not in images_shapes:
-                images_shapes.append(shape)
-    print(phase, "images shapes:", images_shapes, "and count:", len(all_image_paths))
-    
-    if phase == "valid":
-        return
+#    images_shapes = []
+#    for path in all_image_paths:
+#        with open(path, "rb") as f: # open image file
+#            shape = ()
+#            ImPar=ImageFile.Parser() # create image parser
+#            chunk = f.read(1024) # read a first chunk of image of size 1024 bytes = 1Kib
+#            while chunk != "": # keep reading while the read chunk is not empty
+#                ImPar.feed(chunk) # feed the chunk to image parser
+#                if ImPar.image: # if not None i,e if the previously read chunk are sufficient to construct the image object with its metadata
+#                    channels = 1
+#                    if(ImPar.image.mode == "RGB"):
+#                        channels = 3
+#                    img_size = ImPar.image.size
+#                    shape = (img_size[0], img_size[1], channels)
+#                    break
+#                chunk = f.read(1024) # otherwise read another chunk
+#            
+#            if shape not in images_shapes:
+#                images_shapes.append(shape)
+#    print(phase, "images shapes:", images_shapes, "and count:", len(all_image_paths))
+#    
+#    if phase == "valid":
+#        return
         
     # read all labels (i,e the 16 joints array) shapes
     labels_shapes_3d = []
     c = 0
+    p3d_max_x = p3d_min_x = 0
+    p3d_max_y = p3d_min_y = 0
+    p3d_max_z = p3d_min_z = 0
     for label in annotations['pose3d']:
         c += 1
         if label.shape not in labels_shapes_3d:
             labels_shapes_3d.append(label.shape)
+        p3d_max_x = max(p3d_max_x, label[:,0].max())
+        p3d_min_x = min(p3d_min_x, label[:,0].min())
+        
+        p3d_max_y = max(p3d_max_y, label[:,1].max())
+        p3d_min_y = min(p3d_min_y, label[:,1].min())
+        
+        p3d_max_z = max(p3d_max_z, label[:,2].max())
+        p3d_min_z = min(p3d_min_z, label[:,2].min())
+        
             
     print(phase, "labels shapes (3d):", labels_shapes_3d, "and count:", c)
+    print("x range: [{}, {}]".format(p3d_min_x, p3d_max_x))
+    print("y range: [{}, {}]".format(p3d_min_y, p3d_max_y))
+    print("z range: [{}, {}]".format(p3d_min_z, p3d_max_z))
     
     labels_shapes_2d = []
     c = 0
@@ -67,7 +82,7 @@ def print_root_joints(nb, data_to_read="pose2d"):
     for i in range(nb):
         print(annotations[data_to_read][i][0])
     
-#get_data_shapes("train")
+get_data_shapes("train")
 #get_data_shapes("valid")
 
 print_root_joints(20)

@@ -29,7 +29,7 @@ SIGMA=1
 BATCH_SIZE = 1 # predict one by one, allows to use drop_remainder=true which gives back a batched set with a know batch dimension (used by tf.unstack() in HG model)
 
 # Path
-list_of_files = glob.glob('./log/*')
+list_of_files = glob.glob('./log_HG2D/*')
 latest_dir = max(list_of_files, key=os.path.getctime) # latest created dir for latest experiment
 RESTORE_PATH  =os.path.join(latest_dir, "checkpoints") # we restore the lastest saved model from the latest experiment
 CLUSTER_PATH = "/cluster/project/infk/hilliges/lectures/mp19/project2/"

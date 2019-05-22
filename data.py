@@ -50,6 +50,13 @@ def load_and_preprocess_image_renet50(path):
     image = tf.read_file(path)
     image = preprocess_image_resnet50(image)
     return image
+    
+def load_and_preprocess_image_and_poses(path,pose2d, pose3d):
+    image = tf.read_file(path)
+    image = preprocess_image(image)
+    pose2d = tf.cast(pose2d,tf.float32)
+    pose3d = tf.cast(pose3d,tf.float32)
+    return image,pose2d,pose3d
 
 def create_dataloader_train(data_root, batch_size, batches_to_prefetch=1000, data_to_load="pose3d", shuffle=True):
     phase = "train"
@@ -59,13 +66,23 @@ def create_dataloader_train(data_root, batch_size, batches_to_prefetch=1000, dat
     annotations_path = os.path.join(data_root,"annot","%s.h5"%phase)
     annotations = h5py.File(annotations_path, 'r')
     
-    means = np.mean(annotations[data_to_load], axis=0).flatten()
-    std = np.std(annotations[data_to_load], axis=0).flatten()
+    if data_to_load == "all_poses":
+        image_pose_ds = tf.data.Dataset.from_tensor_slices((all_image_paths, annotations["pose2d"], annotations["pose3d"]))
+        means_2d = np.mean(annotations["pose2d"], axis=0).flatten()
+        std_2d = np.std(annotations["pose2d"], axis=0).flatten()
+        means_3d = np.mean(annotations["pose3d"], axis=0).flatten()
+        std_3d = np.std(annotations["pose3d"], axis=0).flatten()
+        processing_func = load_and_preprocess_image_and_poses # function to call in the map operation below
+    else:
+        means = np.mean(annotations[data_to_load], axis=0).flatten()
+        std = np.std(annotations[data_to_load], axis=0).flatten()
+        image_pose_ds = tf.data.Dataset.from_tensor_slices((all_image_paths, annotations[data_to_load])) # dataset of zipped paths and 3D poses (i,e tuples)
+        processing_func = load_and_preprocess_image_and_pose # function to call in the map operation below
     
-    image_pose_ds = tf.data.Dataset.from_tensor_slices((all_image_paths, annotations[data_to_load])) # dataset of zipped paths and 3D poses (i,e tuples)
     if shuffle:
         image_pose_ds = image_pose_ds.shuffle(buffer_size=len(all_image_paths)) # shuffle
-    image_pose_ds = image_pose_ds.map(load_and_preprocess_image_and_pose) # load images
+        
+    image_pose_ds = image_pose_ds.map(processing_func) # load images
 
     image_pose_ds = image_pose_ds.repeat() # repeat dataset indefinitely
     image_pose_ds = image_pose_ds.batch(batch_size, drop_remainder=True) # batch data
@@ -73,8 +90,11 @@ def create_dataloader_train(data_root, batch_size, batches_to_prefetch=1000, dat
     
     iterator = image_pose_ds.make_one_shot_iterator() # create iterator
     dataloader = iterator.get_next() # object to get the next element every time we run it in a session
-
-    return dataloader, means, std
+    
+    if data_to_load == "all_poses":
+        return dataloader, means_2d, std_2d, means_3d, std_3d
+    else:
+        return dataloader, means, std
 
 
 def create_dataloader_train_resnet50(data_root, batch_size, batches_to_prefetch=1000, data_to_load="pose3d", shuffle=True):
@@ -110,7 +130,7 @@ def create_dataloader_test(data_root, batch_size):
     image_pose_ds = tf.data.Dataset.from_tensor_slices(all_image_paths)
     image_pose_ds = image_pose_ds.map(load_and_preprocess_image)
 
-    image_pose_ds = image_pose_ds.batch(batch_size)
+    image_pose_ds = image_pose_ds.batch(batch_size, drop_remainder=True)
 
     iterator = image_pose_ds.make_one_shot_iterator()
     dataloader = iterator.get_next()

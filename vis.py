@@ -39,22 +39,20 @@ def show3Dpose(channels, ax, nb_joints_to_show=17):
                                                                                  # of start and end joints 
         ax.plot(x, y, z, lw=2, c='r' if LR[i] else 'b') # plot the line connecting the start and end point using x, y and z with line width = 2 and color "r"="red" or "b"="blue"
 
-    RADIUS = 750 # space around the subject
+    RADIUS = 1000 # space around the subject
     xroot, yroot, zroot = vals[0,0], vals[0,1], vals[0,2] # the root's coordinates
     ax.set_xlim3d([-RADIUS+xroot, RADIUS+xroot])
     ax.set_zlim3d([-RADIUS+zroot, RADIUS+zroot])
     ax.set_ylim3d([-RADIUS+yroot, RADIUS+yroot])
-
-    ax.view_init(elev=-90., azim=-90)
     
     # remove axis labels and set aspect ratio to be equal across axes
-#    ax.set_xticklabels([])
-#    ax.set_yticklabels([])
-#    ax.set_zticklabels([])
+    ax.set_xticklabels([])
+    ax.set_yticklabels([])
+    ax.set_zticklabels([])
+    
+    ax.view_init(-90, -90)
     ax.set_aspect('equal')
-
-
-
+    
 all_image_paths = open(os.path.join(DATA_PATH,"annot","train_images.txt")).readlines()
 all_image_paths = [os.path.join(DATA_PATH, "images", path[:-1]) for path in all_image_paths]
 
@@ -65,12 +63,13 @@ np.set_printoptions(suppress=True)
 for i,path in enumerate(all_image_paths):
     if i >= max_num: # only show the max_num images with their 2D joints + 3D skeleton
         break;
+
 # Some interesting images for 3d pose:
 #   image i = 223431 has max distance between any pair of joints along x-axis
 #   image i = 141152 has max distance between any pair of joints along y-axis
 #   image i = 152072 has max distance between any pair of joints along z-axis
 #   image i = 98452 has max x-value for some joint in it
-#    if i != 152072:
+#    if i != 98452:
 #        continue
     print(path)
 
