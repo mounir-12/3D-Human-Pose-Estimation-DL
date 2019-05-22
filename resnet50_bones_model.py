@@ -13,7 +13,7 @@ class Resnet_50:
 		height,width = hub.get_expected_image_size(module)
 		output_size = 3*self.nb_joints
 		m = hub.Module(module)
-		self.feature_tensor = m(inp)
+		self.feature_tensor = m(inputs = dict(images=inp, batch_norm_momentum=0.99), signature="image_feature_vector_with_bn_hparams")
 		, feature_tensor_size = feature_tensor.get_shape().as_list()
 		initial_value = tf.truncated_normal([feature_tensor_size, output_size], stddev=0.001)
 		self.weights = tf.Variable(initial_value, name='final_weights')
