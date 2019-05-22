@@ -3,11 +3,12 @@ import tensorflow_hub as hub
 
 
 class Resnet_50:
-	def __init__(self, nb_joints=17, tfhub_module):
+	def __init__(self, nb_joints=17, tfhub_module, loss_type):
 		self.nb_joints = nb_joints
 		self.tfhub_module = tfhub_module
+		self.loss_type = loss_type
 
-	def __call__(self, inp, training=False):
+	def __call__(self, inp):
 		module = hub.load_module_spec(tfhub_module, trainable=True, tags={"train"})
 		height,width = hub.get_expected_image_size(module)
 		output_size = 3*self.nb_joints
@@ -25,7 +26,11 @@ class Resnet_50:
 		return self.pose
 
 	def compute_loss(self, pose_gt, pose_pred):
-		
+
+		if(self.loss_type == 1):
+			return(tf.tf.losses.absolute_difference(pose_gt, pose_pred))
+
+
 
 	def train_op(self, loss, learning_rate=0.001):
 		self.global_step = tf.Variable(0, name='global_step',trainable=False)

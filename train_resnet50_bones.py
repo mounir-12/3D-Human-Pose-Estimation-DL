@@ -25,7 +25,7 @@ NUM_SAMPLES= 312188
 
 # Train parameters
 NUM_EPOCHS = 1
-BATCH_SIZE = 4
+BATCH_SIZE = 8
 LEARNING_RATE = 0.03
 LOG_ITER_FREQ = 50
 SAVE_ITER_FREQ = 2000
@@ -51,7 +51,9 @@ config.gpu_options.allow_growth = True
 config.gpu_options.visible_device_list = "0"
 with tf.Session(config=config) as sess:
 	dataset, p3d_mean, p3d_std = create_dataloader_train(data_root=DATA_PATH, batch_size=BATCH_SIZE, batches_to_prefetch=BATCHES_TO_PREFETCH, data_to_load=DATA_TO_LOAD, shuffle=SHUFFLE)
-    im, p3d_gt = dataset # split the pairs (i,e unzip the tuple). When running one, the other also moves to the next elem (i,e same iterator)
+    im, pose_gt = dataset # split the pairs (i,e unzip the tuple). When running one, the other also moves to the next elem (i,e same iterator)
 
     model = Resnet_50(nb_joints = 17)
-    model.build_graph()
+    pose_pred = model(im)
+
+    loss = model.compute_loss(pose_gt, pose_pred)
