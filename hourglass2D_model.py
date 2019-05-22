@@ -36,7 +36,7 @@ class StackedHourglass:
         outputs = [] # the outputs of the hourglasses
         
         for i in range(self.nb_stacks):
-            hg_out = self.hourglass(inter, self.n, training) # push intermediate input through hourglass
+            hg_out = self.hourglass(inter, self.n, self.nb_channels, training) # push intermediate input through hourglass
             hg_out = residual_block_hg(hg_out, self.nb_channels, self.nb_modules, training) # apply residual block one last time on gh_out which is the result of the last addition in 
                                                                                             # the hourglass (see paper)
             round1 = linear_layer(hg_out, self.nb_channels, training) # perform the 1st round of the 2 consecutive conv rounds, perform in addition to that a batch norm and relu
@@ -66,10 +66,10 @@ class StackedHourglass:
         for all_joints_heatmaps in tf.unstack(final_output): # for each set of 17 heatmaps (1 per joint) of the batch
             joints = []
             for joint_heatmap in tf.unstack(all_joints_heatmaps): # for each joint heatmap
-                joint = tf.roll(tf.cast(tf.unravel_index(
+                joint = tf.reverse(tf.cast(tf.unravel_index(
                                             tf.argmax(tf.reshape(joint_heatmap, [-1]), output_type=tf.int32), tf.shape(joint_heatmap)),tf.float32),
-                                    axis=0, shift=1) # for each heatmap array "a", flatten array then get argmax index in flattened array then convert flat_index back to 2d index using 
-                                                     # unravel_index then cast 2d index to float32, then swap the result (using tf.roll) since the result is (row, col), but we want (col, row)=(x, y)
+                                    axis=0) # for each heatmap array "a", flatten array then get argmax index in flattened array then convert flat_index back to 2d index using 
+                                            # unravel_index then cast 2d index to float32, then swap the result (using tf.reverse) since the result is (row, col), but we want (col, row)=(x, y)
                 joints.append(joint)
             
             poses.append(tf.stack(joints))
@@ -87,19 +87,19 @@ class StackedHourglass:
             
         
         
-    def hourglass(self, inp, n, training): # recursive definition of an hourglass, n=number of residual_blocks (cubes in paper) till the center of the hourglass
-        up_branch = residual_block_hg(inp, self.nb_channels, self.nb_modules, training) # push input through residual block and get output
+    def hourglass(self, inp, n, nb_channels, training): # recursive definition of an hourglass, n=number of residual_blocks (cubes in paper) till the center of the hourglass
+        up_branch = residual_block_hg(inp, nb_channels, self.nb_modules, training) # push input through residual block and get output
         
         low_branch = max_pool_layer(inp, (2, 2), (2, 2)) # 2x2 pooling of input with stride 2x2 => Down-sampling: we half the input's height and width
-        low_branch = residual_block_hg(low_branch, self.nb_channels, self.nb_modules, training) # push through a residual block
+        low_branch = residual_block_hg(low_branch, nb_channels, self.nb_modules, training) # push through a residual block
         
         if n > 1: # while n > 1, we keep performing a recursive call
-            low_branch = self.hourglass(low_branch, n-1, training) # recursive call
+            low_branch = self.hourglass(low_branch, n-1, nb_channels, training) # recursive call
         else: # n == 1
-            low_branch = residual_block_hg(low_branch, self.nb_channels, self.nb_modules, training) # push through a residual block
+            low_branch = residual_block_hg(low_branch, nb_channels, self.nb_modules, training) # push through a residual block
         
         # starting here, we start building the right half of the hourglass
-        low_branch = residual_block_hg(low_branch, self.nb_channels, self.nb_modules, training) # push through a residual block
+        low_branch = residual_block_hg(low_branch, nb_channels, self.nb_modules, training) # push through a residual block
         low_branch = nearest_neighbor_up_sampling_layer(low_branch, (2, 2)) # Up-sample: double the image width and height
         
         return up_branch + low_branch
@@ -147,7 +147,7 @@ class StackedHourglass:
         return total_loss
         
     def gaussian_2d(self, mean, var, H, W): # multivariate gaussian with diagonal covariance matrix Sigma = var * I 
-        mean = tf.floor(mean) # move the mean to have one the discrete values (i,e int)
+        mu = tf.cast(tf.cast(mean, tf.int32), tf.float32) # remove decimal part due to discretization of the 2D space
         
         # Generate a mesh grid to plot the distributions
         X, Y = tf.meshgrid(tf.range(0.0, W, 1), tf.range(0.0, H, 1))

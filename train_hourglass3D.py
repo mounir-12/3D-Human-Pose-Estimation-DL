@@ -31,17 +31,17 @@ SAVE_ITER_FREQ = 2000
 SAMPLE_ITER_FREQ = 100
 
 # Model parameters
-NB_STACKS=4
-SIGMA=1
+Z_RES=[64]
+SIGMA=2
 
 # Data parameters
 SHUFFLE=True
-DATA_TO_LOAD="all_poses"
+DATA_TO_LOAD="pose3d"
 BATCHES_TO_PREFETCH=300
 
 # Paths
 CURR_DIR = "."
-LOG_PATH = os.path.join(CURR_DIR, "logHG3D", utils.timestamp())
+LOG_PATH = os.path.join(CURR_DIR, "log_HG3D", utils.timestamp())
 CHECKPOINTS_PATH = os.path.join(LOG_PATH, "checkpoints")
 CLUSTER_PATH = "/cluster/project/infk/hilliges/lectures/mp19/project2/"
 if os.path.exists(CLUSTER_PATH):
@@ -55,27 +55,29 @@ config.gpu_options.visible_device_list = "0"
 with tf.Session(config=config) as sess:
     
     # load dataset of batched (image, pose2d, pose3d)
-    dataset, _, _, _, _ = create_dataloader_train(data_root=DATA_PATH, batch_size=BATCH_SIZE, batches_to_prefetch=BATCHES_TO_PREFETCH, data_to_load=DATA_TO_LOAD, shuffle=SHUFFLE)
-    im, p2d_gt, p3d_gt = dataset # split the pairs (i,e unzip the tuple). When running one, the other also moves to the next elem (i,e same iterator)
+    dataset, _, _ = create_dataloader_train(data_root=DATA_PATH, batch_size=BATCH_SIZE, batches_to_prefetch=BATCHES_TO_PREFETCH, data_to_load=DATA_TO_LOAD, shuffle=SHUFFLE)
+    im, p3d_gt = dataset # split the pairs (i,e unzip the tuple). When running one, the other also moves to the next elem (i,e same iterator)
 
-    sys.exit(0)
+#    sys.exit(0)
     # define model
-    model = StackedHourglass(nb_stacks=NB_STACKS, sigma=SIGMA)
+    model = C2FStackedHourglass(z_res=Z_RES, sigma=SIGMA)
     
     # build the model
-    all_heatmaps_pred, p2d_pred = model(im, training=True)
+    all_heatmaps_pred, p3d_pred = model(im, training=True)
 #    sys.exit(0)
     
     # compute loss
-    loss = model.compute_loss(p2d_gt, all_heatmaps_pred)
+    loss = model.compute_loss(p3d_gt, all_heatmaps_pred)
 #    sys.exit(0)
 
     # define trainer
     train_op, global_step = model.get_train_op(loss, learning_rate=LEARNING_RATE)
 #    sys.exit(0)
 
+    mpjpe = utils.compute_MPJPE(p3d_pred,p3d_gt)
     # visualization related
     tf.summary.scalar("loss", loss)
+    tf.summary.scalar("mpjpe", mpjpe)
     merged = tf.summary.merge_all()
     train_writer = tf.summary.FileWriter(CHECKPOINTS_PATH, sess.graph)
 
@@ -95,17 +97,21 @@ with tf.Session(config=config) as sess:
             t.set_postfix(epoch=epoch_cur,iter_percent="%d %%"%(iter_cur/float(NUM_SAMPLES)*100) ) # update displayed info, iter_percent = percentage of completion of current iteration (i,e epoch)
 
             # vis
-            if (i+1) % SAMPLE_ITER_FREQ == 0:
-                _, images, p2d_gt_arr, p2d_pred_arr = sess.run([train_op, im, p2d_gt, p2d_pred])
+            if (i+1) % SAMPLE_ITER_FREQ == 0: # if it's time to show sample images and predictions
+                if (i+1) % LOG_ITER_FREQ == 0: # if it's also time to write summaries
+                    _, images, p3d_gt_vals, p3d_pred_vals, summary = sess.run([train_op, im, p3d_gt, p3d_pred, merged])
+                    train_writer.add_summary(summary, i+1) # write summary
+                else: # otherwise, no summary writing
+                    _, images, p3d_gt_vals, p3d_pred_vals = sess.run([train_op, im, p3d_gt, p3d_pred])
 
                 image = ((images[0]+1)*128.0).transpose(1,2,0).astype("uint8") # unnormalize, put in channels_last format and cast to uint8
-                image = np.asarray(Image.fromarray(image, "RGB")) # necessary conversion for cv2
                 save_dir = os.path.join(LOG_PATH, "train_samples")
-                utils.save_p2d_image(image, p2d_gt_arr[0], p2d_pred_arr[0], save_dir, i+1)
+                utils.save_p3d_image(image, p3d_gt_vals[0], p3d_pred_vals[0], save_dir, i+1)
             
             elif (i+1) % LOG_ITER_FREQ == 0:
                 _, summary = sess.run([train_op, merged])
                 train_writer.add_summary(summary, i+1)
+                
             else:
                 _, = sess.run([train_op])
 

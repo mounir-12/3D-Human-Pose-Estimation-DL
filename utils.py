@@ -15,6 +15,9 @@ import numpy as np
 import patoolib, os, cv2
 from PIL import Image
 import datetime, time
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+import math
 
 def timestamp():
     return datetime.datetime.fromtimestamp(time.time()).strftime("%Y.%m.%d-%H:%M:%S")
@@ -22,12 +25,33 @@ def timestamp():
 def get_time():
     return time.time()
     
-def convert_heatmaps_to_p2d(heatmaps):
-    p2d = np.empty([heatmaps.shape[0], 2])
-    for i, heatmap in enumerate(heatmaps):
-        p2d[i] = np.flip(np.unravel_index(heatmap.argmax(), heatmap.shape), axis=0)
-    return p2d
+# ------------------------------ Transformation -------------------------------------------------
+def get_rot_matrix_around_z(degrees):
+    M = np.zeros([3,3])
+    M[0][0] = math.cos(math.radians(degrees))
+    M[0][1] = -math.sin(math.radians(degrees))
+    M[1][0] = math.sin(math.radians(degrees))
+    M[1][1] = math.cos(math.radians(degrees))
+    M[2][2] = 1
+    return M
+    
+def get_rot_matrix_around_y(degrees):
+    M = np.zeros([3,3])
+    M[0][0] = math.cos(math.radians(degrees))
+    M[0][2] = math.sin(math.radians(degrees))
+    M[2][0] = -math.sin(math.radians(degrees))
+    M[2][2] = math.cos(math.radians(degrees))
+    M[1][1] = 1
+    return M
 
+def transform_pose(pose, M): # M: transformation matrix
+    transformed = np.empty(pose.shape)
+    for i,joint in enumerate(pose):
+        transformed[i] = np.matmul(M, joint)
+    return transformed
+# ---------------------------------------------------------------------------------------------
+
+# ------------------------------------ Saving Predictions -------------------------------------
 def save_p2d_image(image, p2d_gt, p2d_pred, dir_name, index, radius=3):
     if not os.path.exists(dir_name):
         os.makedirs(dir_name)
@@ -53,12 +77,75 @@ def save_p2d_image(image, p2d_gt, p2d_pred, dir_name, index, radius=3):
     img = Image.fromarray(image_p2d, "RGB")
     img.save(os.path.join(dir_name, "img_{}.png".format(index)))
     
-def compute_MPJPE(p3d_out,p3d_gt,p3d_std):
+def save_p3d_image(image, p3d_gt, p3d_pred, dir_name, index):
+    dir_name = os.path.join(dir_name, "img_{}".format(index))
+    if not os.path.exists(dir_name):
+        os.makedirs(dir_name)
+        
+    fig = plt.figure(figsize=(25, 25))
+    ax_p3d_gt = fig.add_subplot(311, projection='3d')
+    ax_p3d_pred = fig.add_subplot(312, projection='3d')
+    ax_img = fig.add_subplot(313)
+    
+    
+    ax_img.imshow(image)
+    
+    for degrees in range(0, 360, 90): # plot 3D pose from 4 sides
+        M = get_rot_matrix_around_y(degrees)
+        
+        # plot p3d_gt
+        transformed = transform_pose(p3d_gt, M)
+        plot_3D_pose(transformed, ax_p3d_gt, "Ground Truth")
+        
+        # plot p3d_pred
+        transformed = transform_pose(p3d_pred, M)
+        plot_3D_pose(transformed, ax_p3d_pred, "Predictions")
+        
+        # save figure
+        fig_name = "fig_rot_{}".format(degrees)
+        fig.savefig(os.path.join(dir_name, fig_name))
+        
+        # clear 3D pose axes
+        ax_p3d_gt.clear()
+        ax_p3d_pred.clear()
+        
+def plot_3D_pose(channels, ax, title):
+    vals = np.reshape( channels, (17, -1) )
+    I = np.array([0, 1, 2, 0, 4, 5, 0, 7, 8, 9, 8, 11, 12, 8, 14, 15])  # start points
+    J = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16])  # end points
+    LR = np.array([1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1,0,0,0], dtype=bool)
+
+    # Make connection matrix
+    for i in np.arange( len(I)):
+        x, y, z = [np.array( [vals[I[i], j], vals[J[i], j]] ) for j in range(3)] # each of x, y and z is a pair (x_start, x_end), (y_start, y_end), (z_start, z_end) with coordinates 
+                                                                                 # of start and end joints 
+        ax.plot(x, y, z, lw=2, c='r' if LR[i] else 'b') # plot the line connecting the start and end point using x, y and z with line width = 2 and color "r"="red" or "b"="blue"
+
+    RADIUS = 1000 # space around the subject
+    xroot, yroot, zroot = vals[0,0], vals[0,1], vals[0,2] # the root's coordinates
+    ax.set_xlim3d([-RADIUS+xroot, RADIUS+xroot])
+    ax.set_zlim3d([-RADIUS+zroot, RADIUS+zroot])
+    ax.set_ylim3d([-RADIUS+yroot, RADIUS+yroot])
+    
+    # remove axis labels and set aspect ratio to be equal across axes
+    ax.set_xticklabels([])
+    ax.set_yticklabels([])
+    ax.set_zticklabels([])
+    
+    ax.view_init(elev=-90., azim=-90)
+    ax.set_aspect('equal')
+    ax.set_title(title)
+# ----------------------------------------------------------------------------------------------
+    
+def compute_MPJPE(p3d_out,p3d_gt,p3d_std=None):
 
     p3d_out_17x3 = tf.reshape(p3d_out, [-1, 17, 3])
     p3d_gt_17x3  = tf.reshape(p3d_gt, [-1, 17, 3])
-
-    mse = ( (p3d_out_17x3 - p3d_gt_17x3) * p3d_std) ** 2
+    
+    mse = (p3d_out_17x3 - p3d_gt_17x3)
+    if p3d_std is not None:
+        mse = mse * p3d_std
+    mse = mse ** 2
     mse = tf.reduce_sum(mse, axis=2)
     mpjpe = tf.reduce_mean(tf.sqrt(mse))
 

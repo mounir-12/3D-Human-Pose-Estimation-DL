@@ -41,7 +41,7 @@ BATCHES_TO_PREFETCH=300
 
 # Paths
 CURR_DIR = "."
-LOG_PATH = os.path.join(CURR_DIR, "log", utils.timestamp())
+LOG_PATH = os.path.join(CURR_DIR, "log_HG2D", utils.timestamp())
 CHECKPOINTS_PATH = os.path.join(LOG_PATH, "checkpoints")
 CLUSTER_PATH = "/cluster/project/infk/hilliges/lectures/mp19/project2/"
 if os.path.exists(CLUSTER_PATH):
@@ -94,8 +94,12 @@ with tf.Session(config=config) as sess:
             t.set_postfix(epoch=epoch_cur,iter_percent="%d %%"%(iter_cur/float(NUM_SAMPLES)*100) ) # update displayed info, iter_percent = percentage of completion of current iteration (i,e epoch)
 
             # vis
-            if (i+1) % SAMPLE_ITER_FREQ == 0:
-                _, images, p2d_gt_arr, p2d_pred_arr = sess.run([train_op, im, p2d_gt, p2d_pred])
+            if (i+1) % SAMPLE_ITER_FREQ == 0: # if it's time to show sample images and predictions
+                if (i+1) % LOG_ITER_FREQ == 0: # if it's also time to write summaries
+                    _, images, p2d_gt_arr, p2d_pred_arr, summary = sess.run([train_op, im, p2d_gt, p2d_pred, merged])
+                    train_writer.add_summary(summary, i+1) # write summary
+                else: # otherwise, no summary writing
+                    _, images, p2d_gt_arr, p2d_pred_arr = sess.run([train_op, im, p2d_gt, p2d_pred])
 
                 image = ((images[0]+1)*128.0).transpose(1,2,0).astype("uint8") # unnormalize, put in channels_last format and cast to uint8
                 image = np.asarray(Image.fromarray(image, "RGB")) # necessary conversion for cv2
