@@ -68,7 +68,7 @@ class StackedHourglass:
             for joint_heatmap in tf.unstack(all_joints_heatmaps): # for each joint heatmap
                 joint = tf.reverse(tf.cast(tf.unravel_index(
                                             tf.argmax(tf.reshape(joint_heatmap, [-1]), output_type=tf.int32), tf.shape(joint_heatmap)),tf.float32),
-                                    axis=0) # for each heatmap array "a", flatten array then get argmax index in flattened array then convert flat_index back to 2d index using 
+                                    axis=[0]) # for each heatmap array "a", flatten array then get argmax index in flattened array then convert flat_index back to 2d index using 
                                             # unravel_index then cast 2d index to float32, then swap the result (using tf.reverse) since the result is (row, col), but we want (col, row)=(x, y)
                 joints.append(joint)
             

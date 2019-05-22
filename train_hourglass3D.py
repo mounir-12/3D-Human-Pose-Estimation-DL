@@ -31,7 +31,7 @@ SAVE_ITER_FREQ = 2000
 SAMPLE_ITER_FREQ = 100
 
 # Model parameters
-Z_RES=[64]
+Z_RES=[1, 2, 4, 64]
 SIGMA=2
 
 # Data parameters
