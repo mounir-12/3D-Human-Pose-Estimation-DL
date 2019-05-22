@@ -3,7 +3,7 @@ import tensorflow_hub as hub
 
 
 class Resnet_50:
-	def __init__(self, nb_joints=17, tfhub_module, loss_type):
+	def __init__(self, nb_joints=17, tfhub_module, loss_type=1):
 		self.nb_joints = nb_joints
 		self.tfhub_module = tfhub_module
 		self.loss_type = loss_type

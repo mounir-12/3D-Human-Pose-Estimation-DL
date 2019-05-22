@@ -24,18 +24,18 @@ def preprocess_image(image):
 def preprocess_image_resnet50(image, height, width):
     image = tf.image.decode_jpeg(image, channels=3)
     image = tf.image.resize(image, (height, width))
-    image = tf.cast(image,tf.float32) / 128. - 1
+    image = tf.cast(image,tf.float32) / 255.
     image = tf.transpose(a=image, perm=[2, 0, 1]) # images are read in channels_last format, so convert to channels_first format
     return image
 
 
-def load_and_preprocess_image_and_pose(path,pose):
+def load_and_preprocess_image_and_pose(path, pose):
     image = tf.read_file(path)
     image = preprocess_image(image)
     pose = tf.cast(pose,tf.float32)
     return image,pose
 
-def load_and_preprocess_image_and_pose_resnet50(path,pose):
+def load_and_preprocess_image_and_pose_resnet50(path, pose):
     image = tf.read_file(path)
     image = preprocess_image(image)
     pose = tf.cast(pose,tf.float32)
@@ -51,7 +51,7 @@ def load_and_preprocess_image_renet50(path):
     image = preprocess_image_resnet50(image)
     return image
     
-def load_and_preprocess_image_and_poses(path,pose2d, pose3d):
+def load_and_preprocess_image_and_poses(path, pose2d, pose3d):
     image = tf.read_file(path)
     image = preprocess_image(image)
     pose2d = tf.cast(pose2d,tf.float32)
