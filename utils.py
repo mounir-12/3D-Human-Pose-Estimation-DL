@@ -102,7 +102,7 @@ def save_p3d_image(image, p3d_gt, p3d_pred, dir_name, index):
         plot_3D_pose(transformed, ax_p3d_pred, "Predictions")
         
         # save figure
-        fig_name = "fig_rot_{}".format(degrees)
+        fig_name = "fig_rot_{}.png".format(degrees)
         fig.savefig(os.path.join(dir_name, fig_name))
         
         # clear 3D pose axes
