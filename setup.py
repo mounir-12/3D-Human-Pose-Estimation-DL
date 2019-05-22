@@ -32,6 +32,6 @@ setup(
                 'tqdm',
                 'h5py',
                 'Pillow',
-                'matplotlib'
+                'matplotlib==2.1.2'
         ],
 )
