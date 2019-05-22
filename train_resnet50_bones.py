@@ -53,7 +53,7 @@ with tf.Session(config=config) as sess:
 	dataset, p3d_mean, p3d_std = create_dataloader_train(data_root=DATA_PATH, batch_size=BATCH_SIZE, batches_to_prefetch=BATCHES_TO_PREFETCH, data_to_load=DATA_TO_LOAD, shuffle=SHUFFLE)
     im, pose_gt = dataset # split the pairs (i,e unzip the tuple). When running one, the other also moves to the next elem (i,e same iterator)
 
-    model = Resnet_50(nb_joints = 17)
+    model = Resnet_50(nb_joints = 17, tfhub_module)
     pose_pred = model(im)
 
     loss = model.compute_loss(pose_gt, pose_pred)
