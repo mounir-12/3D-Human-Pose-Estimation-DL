@@ -39,7 +39,7 @@ BATCHES_TO_PREFETCH=300
 # Paths
 CURR_DIR = "."
 tfhub_module = 'https://tfhub.dev/google/imagenet/resnet_v2_50/feature_vector/1'
-LOG_PATH = os.path.join(CURR_DIR, "log", utils.timestamp())
+LOG_PATH = os.path.join(CURR_DIR, "log_ResNet50_Bones", utils.timestamp())
 CHECKPOINTS_PATH = os.path.join(LOG_PATH, "checkpoints")
 CLUSTER_PATH = "/cluster/project/infk/hilliges/lectures/mp19/project2/"
 if os.path.exists(CLUSTER_PATH):
@@ -87,10 +87,11 @@ with tf.Session(config=config) as sess:
                 else: # otherwise, no summary writing
                     _, images, pose_gt_arr, pose_pred_arr = sess.run([train_op, im, pose_gt, pose_pred])
 
+                pose_pred_arr = pose_pred_arr.reshape([-1, 17, 3])
                 image = ((images[0])*255.0).astype("uint8") # unnormalize and cast to uint8
                 image = np.asarray(Image.fromarray(image, "RGB")) # necessary conversion for cv2
                 save_dir = os.path.join(LOG_PATH, "train_samples")
-                utils.save_p3d_image(image, p2d_gt_arr[0], p2d_pred_arr[0], save_dir, i+1)
+                utils.save_p3d_image(image, pose_gt_arr[0], pose_pred_arr[0], save_dir, i+1)
             
             elif (i+1) % LOG_ITER_FREQ == 0:
                 _, summary = sess.run([train_op, merged])
