@@ -46,7 +46,7 @@ def load_and_preprocess_image_and_poses(path, pose2d, pose3d):
     pose3d = tf.cast(pose3d,tf.float32)
     return image,pose2d,pose3d
 
-def create_dataloader_train(data_root, batch_size, batches_to_prefetch=1000, data_to_load="pose3d", shuffle=True):
+def create_dataset_train(data_root, batch_size, valid_size=0, batches_to_prefetch=1000, data_to_load="pose3d", shuffle=True): # returns a dataset i,e not an iterator
     phase = "train"
     all_image_paths = open(os.path.join(data_root,"annot","%s_images.txt"%phase)).readlines() # read all lines ('\n' included)
     all_image_paths = [os.path.join(data_root, "images", path[:-1]) for path in all_image_paths] # construct paths removing '\n'
@@ -62,29 +62,45 @@ def create_dataloader_train(data_root, batch_size, batches_to_prefetch=1000, dat
         std_3d = np.std(annotations["pose3d"], axis=0).flatten()
         processing_func = load_and_preprocess_image_and_poses # function to call in the map operation below
     else:
+        image_pose_ds = tf.data.Dataset.from_tensor_slices((all_image_paths, annotations[data_to_load])) # dataset of zipped paths and 3D poses (i,e tuples)
         means = np.mean(annotations[data_to_load], axis=0).flatten()
         std = np.std(annotations[data_to_load], axis=0).flatten()
-        image_pose_ds = tf.data.Dataset.from_tensor_slices((all_image_paths, annotations[data_to_load])) # dataset of zipped paths and 3D poses (i,e tuples)
         processing_func = load_and_preprocess_image_and_pose # function to call in the map operation below
     
     if shuffle:
         image_pose_ds = image_pose_ds.shuffle(buffer_size=len(all_image_paths)) # shuffle
         
     image_pose_ds = image_pose_ds.map(processing_func) # load images
-
-    image_pose_ds = image_pose_ds.repeat() # repeat dataset indefinitely
-    image_pose_ds = image_pose_ds.batch(batch_size, drop_remainder=True) # batch data
-    image_pose_ds.prefetch(batches_to_prefetch)
     
-    iterator = image_pose_ds.make_one_shot_iterator() # create iterator
-    dataloader = iterator.get_next() # object to get the next element every time we run it in a session
+    if valid_size > 0: # split into train and validation sets
+        valid_ds = image_pose_ds.take(valid_size)
+        train_ds = image_pose_ds.skip(valid_size)
+    else: # the data is for training
+        train_ds = image_pose_ds
+
+    train_ds = train_ds.repeat() # repeat dataset indefinitely
+    train_ds = train_ds.batch(batch_size, drop_remainder=True) # batch data
+    train_ds = train_ds.prefetch(batches_to_prefetch)
+    
+    if valid_size > 0: # batch and prefetech validation data, create iterator
+        valid_ds = valid_ds.repeat() # repeat dataset indefinitely
+        valid_ds = valid_ds.batch(batch_size, drop_remainder=True) # batch data
+        valid_ds = valid_ds.prefetch(batches_to_prefetch)
+
+    # decide what to return
+    to_return = [train_ds] # list of objects to return
+    
+    if valid_size > 0:
+        to_return.append(valid_ds)
     
     if data_to_load == "all_poses":
-        return dataloader, means_2d, std_2d, means_3d, std_3d
+        to_return = to_return + [means_2d, std_2d, means_3d, std_3d] # return 2d and 3d means and std
     else:
-        return dataloader, means, std
+        to_return = to_return + [means, std] # return means and std of loaded poses
+    
+    return to_return
         
-def create_dataloader_test(data_root):
+def create_dataloader_test(data_root): # return a dataloader i,e an iterator
     phase = "valid"
     all_image_paths = open(os.path.join(data_root,"annot","%s_images.txt"%phase)).readlines()
     all_image_paths = [os.path.join(data_root, "images", path[:-1]) for path in all_image_paths]
