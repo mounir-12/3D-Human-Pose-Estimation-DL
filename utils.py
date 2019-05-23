@@ -85,19 +85,23 @@ def save_p3d_image(image, p3d_gt, p3d_pred, dir_name, index):
         os.makedirs(dir_name)
         
     fig = plt.figure(figsize=(25, 25))
-    ax_p3d_gt = fig.add_subplot(311, projection='3d')
-    ax_p3d_pred = fig.add_subplot(312, projection='3d')
-    ax_img = fig.add_subplot(313)
-    
+    if p3d_gt is not None: # create subplot for p3d_gt
+        ax_p3d_gt = fig.add_subplot(311, projection='3d')
+        ax_p3d_pred = fig.add_subplot(312, projection='3d')
+        ax_img = fig.add_subplot(313)
+    else: # only create subplots for p3d_pred and image
+        ax_p3d_pred = fig.add_subplot(211, projection='3d')
+        ax_img = fig.add_subplot(212)
     
     ax_img.imshow(image)
     
     for degrees in range(0, 360, 90): # plot 3D pose from 4 sides
         M = get_rot_matrix_around_y(degrees)
         
-        # plot p3d_gt
-        transformed = transform_pose(p3d_gt, M)
-        plot_3D_pose(transformed, ax_p3d_gt, "Ground Truth")
+        if p3d_gt is not None:
+            # plot p3d_gt
+            transformed = transform_pose(p3d_gt, M)
+            plot_3D_pose(transformed, ax_p3d_gt, "Ground Truth")
         
         # plot p3d_pred
         transformed = transform_pose(p3d_pred, M)
@@ -108,8 +112,10 @@ def save_p3d_image(image, p3d_gt, p3d_pred, dir_name, index):
         fig.savefig(os.path.join(dir_name, fig_name))
         
         # clear 3D pose axes
-        ax_p3d_gt.clear()
+        if p3d_gt is not None:
+            ax_p3d_gt.clear()
         ax_p3d_pred.clear()
+    plt.close()
         
 def plot_3D_pose(channels, ax, title):
     vals = np.reshape( channels, (17, -1) )

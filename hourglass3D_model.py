@@ -96,21 +96,14 @@ class C2FStackedHourglass: # Coarse to Fine Stacked Hourglass
 
         # transform the final output to p3d
         with tf.name_scope("heatmaps_to_poses"):
-            poses = []
-            z_final_out = self.z_res[-1] # nb of planes in z-axis in the 3D heatmap of each joint
-            for all_joints_heatmaps in tf.unstack(final_output): # for each set of 17 heatmaps (1 per joint) of the batch
-                joints = []
-                for i in range(0, self.nb_joints): # for each joint heatmap
-                    joint_heatmap = all_joints_heatmaps[i*z_final_out : (i+1)*z_final_out] # extarct the 3D heatmap of the joint (i,e the "z_final_out"=64 planes of the joint)
-                    joint = tf.reverse(tf.cast(tf.unravel_index(
-                                                tf.argmax(tf.reshape(joint_heatmap, [-1]), output_type=tf.int32), tf.shape(joint_heatmap)),tf.float32),
-                                        axis=[0]) # for each heatmap array "a", flatten array then get argmax index in flattened array then convert flat_index back to 2d index using 
-                                                # unravel_index then cast 2d index to float32, then swap the result (using tf.reverse) since the result is (z, y, x), but we want (x, y, z)
-                    joints.append(joint)
-                
-                poses.append(tf.stack(joints))
-                
-            p3d_pred = tf.stack(poses)
+            if training: # when training, use tf.unstack since batch_size known
+                poses = []
+                for all_joints_heatmaps in tf.unstack(final_output): # for each set of 17 heatmaps (1 per joint) of the batch
+                    poses.append(self.heatmaps_to_pose(all_joints_heatmaps))
+                    
+                p3d_pred = tf.stack(poses)
+            else: # otherwise, use tf.map_fn
+                p3d_pred = tf.map_fn(self.heatmaps_to_pose, final_output)
         
         # in each axis, say z-axis, the range goes from [0, output_shape[0]] pixels and correponds to the metric range [0, 2000] mm so we need to divide the z-axis predictions by output_shape[0]
         # and multiply by 2000 to get the nb of millimeter, then center on the root joint. Likewise for y and x axis
@@ -122,12 +115,15 @@ class C2FStackedHourglass: # Coarse to Fine Stacked Hourglass
 
         with tf.name_scope("poses_to_mm_centered"):
             p3d_pred_mm = (p3d_pred/scale_xyz)*metric_scale_xyz
-            poses = []
-            for p3d in tf.unstack(p3d_pred_mm): # for each predicted pose
-                p3d = p3d - p3d[0] # center around root joint
-                poses.append(p3d)
-            
-            p3d_pred_mm_centered = tf.stack(poses)
+            if training: # when training, use tf.unstack since batch_size known
+                poses = []
+                for p3d in tf.unstack(p3d_pred_mm): # for each predicted pose
+                    p3d = p3d - p3d[0] # center around root joint
+                    poses.append(p3d)
+                
+                p3d_pred_mm_centered = tf.stack(poses)
+            else: # otherwise, use tf.map_fn
+                p3d_pred_mm_centered = tf.map_fn(lambda p3d: p3d - p3d[0], p3d_pred_mm)
         
 #        with tf.Session() as sess:
 #            sess.run(tf.global_variables_initializer())
@@ -144,7 +140,19 @@ class C2FStackedHourglass: # Coarse to Fine Stacked Hourglass
         print("\n\nBuilt the model in {} s\n\n".format(time.time()-a))
 
         return outputs, p3d_pred_mm_centered # return all heatmaps of all hourglasses and the centered p3d predictions
-            
+ 
+    def heatmaps_to_pose(self, all_joints_heatmaps):
+        joints = []
+        z_final_out = self.z_res[-1] # nb of planes in z-axis in the 3D heatmap of each joint
+        for i in range(0, self.nb_joints): # for each joint heatmap
+            joint_heatmap = all_joints_heatmaps[i*z_final_out : (i+1)*z_final_out] # extract the 3D heatmap of the joint (i,e the "z_final_out"=64 planes of the joint)
+            joint = tf.reverse(tf.cast(tf.unravel_index(
+                                        tf.argmax(tf.reshape(joint_heatmap, [-1]), output_type=tf.int32), tf.shape(joint_heatmap)),tf.float32),
+                                axis=[0]) # for each heatmap array "a", flatten array then get argmax index in flattened array then convert flat_index back to 2d index using 
+                                        # unravel_index then cast 2d index to float32, then swap the result (using tf.reverse) since the result is (z, y, x), but we want (x, y, z)
+            joints.append(joint)
+        
+        return tf.stack(joints)           
         
         
     def hourglass(self, inp, n, nb_channels, training): # recursive definition of an hourglass, n=number of residual_blocks (cubes in paper) till the center of the hourglass
