@@ -22,6 +22,7 @@ from PIL import Image
 
 NUM_SAMPLES= 312188
 VALID_SIZE= 2188
+NUM_SAMPLES = NUM_SAMPLES - VALID_SAMPLES # update NUM_SAMPLES
 
 # Train parameters
 NUM_EPOCHS = 2
@@ -32,13 +33,13 @@ VALID_ITER_FREQ = 500
 SAVE_ITER_FREQ = 2000
 
 # Model parameters
-Z_RES=[64]
+Z_RES=[1, 2, 4, 64]
 SIGMA=2
 
 # Data parameters
 SHUFFLE=True
 DATA_TO_LOAD="pose3d"
-BATCHES_TO_PREFETCH=300
+BATCHES_TO_PREFETCH=20
 
 # Paths
 CURR_DIR = "."
