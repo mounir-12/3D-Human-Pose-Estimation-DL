@@ -14,7 +14,12 @@ import tensorflow as tf
 import h5py
 import os
 import numpy as np
- 
+
+# fix random seeds in this file since used by all training files to load data
+tf.random.set_random_seed(5)
+np.random.seed(5)
+print("\nFixed random seeds\n")
+
 def preprocess_image(image):
     image = tf.image.decode_jpeg(image, channels=3)
     image = tf.cast(image,tf.float32) / 128. - 1
