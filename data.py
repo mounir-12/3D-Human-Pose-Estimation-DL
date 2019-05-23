@@ -14,19 +14,19 @@ import tensorflow as tf
 import h5py
 import os
 import numpy as np
- 
+
+# fix random seeds in this file since used by all training files to load data
+tf.random.set_random_seed(5)
+np.random.seed(5)
+print("\nFixed random seeds\n")
+
+# ---------------------------------------- Basic Data Loading Function -------------------------------------------------------
+
 def preprocess_image(image):
     image = tf.image.decode_jpeg(image, channels=3)
     image = tf.cast(image,tf.float32) / 128. - 1
     image = tf.transpose(a=image, perm=[2, 0, 1]) # images are read in channels_last format, so convert to channels_first format
     return image
-
-def preprocess_image_resnet50(image, height, width):
-    image = tf.image.decode_jpeg(image, channels=3)
-    image = tf.image.resize_images(image, (height, width))
-    image = tf.cast(image,tf.float32) / 255.
-    return image
-
 
 def load_and_preprocess_image_and_pose(path, pose):
     image = tf.read_file(path)
@@ -34,22 +34,9 @@ def load_and_preprocess_image_and_pose(path, pose):
     pose = tf.cast(pose,tf.float32)
     return image,pose
 
-def load_and_preprocess_image_and_pose_resnet50(path, pose):
-    image = tf.read_file(path)
-    height = 224
-    width = 224
-    image = preprocess_image_resnet50(image, height, width)
-    pose = tf.cast(pose,tf.float32)
-    return image,pose
-
 def load_and_preprocess_image(path):
     image = tf.read_file(path)
     image = preprocess_image(image)
-    return image
-
-def load_and_preprocess_image_renet50(path):
-    image = tf.read_file(path)
-    image = preprocess_image_resnet50(image)
     return image
     
 def load_and_preprocess_image_and_poses(path, pose2d, pose3d):
@@ -96,7 +83,42 @@ def create_dataloader_train(data_root, batch_size, batches_to_prefetch=1000, dat
         return dataloader, means_2d, std_2d, means_3d, std_3d
     else:
         return dataloader, means, std
+        
+def create_dataloader_test(data_root, batch_size):
+    phase = "valid"
+    all_image_paths = open(os.path.join(data_root,"annot","%s_images.txt"%phase)).readlines()
+    all_image_paths = [os.path.join(data_root, "images", path[:-1]) for path in all_image_paths]
 
+    image_pose_ds = tf.data.Dataset.from_tensor_slices(all_image_paths)
+    image_pose_ds = image_pose_ds.map(load_and_preprocess_image)
+
+    image_pose_ds = image_pose_ds.batch(batch_size)
+
+    iterator = image_pose_ds.make_one_shot_iterator()
+    dataloader = iterator.get_next()
+
+    return dataloader
+    
+# -------------------------------------------- Bones Resnet 50 Specific Functions -------------------------------------------------
+
+def preprocess_image_resnet50(image, height, width):
+    image = tf.image.decode_jpeg(image, channels=3)
+    image = tf.image.resize_images(image, (height, width))
+    image = tf.cast(image,tf.float32) / 255.
+    return image
+    
+def load_and_preprocess_image_and_pose_resnet50(path, pose):
+    image = tf.read_file(path)
+    height = 224
+    width = 224
+    image = preprocess_image_resnet50(image, height, width)
+    pose = tf.cast(pose,tf.float32)
+    return image,pose
+
+def load_and_preprocess_image_renet50(path):
+    image = tf.read_file(path)
+    image = preprocess_image_resnet50(image)
+    return image
 
 def create_dataloader_train_resnet50(data_root, batch_size, batches_to_prefetch=1000, data_to_load="pose3d", shuffle=True):
     phase = "train"
@@ -124,20 +146,6 @@ def create_dataloader_train_resnet50(data_root, batch_size, batches_to_prefetch=
 
     return dataloader, means, std
 
-def create_dataloader_test(data_root, batch_size):
-    phase = "valid"
-    all_image_paths = open(os.path.join(data_root,"annot","%s_images.txt"%phase)).readlines()
-    all_image_paths = [os.path.join(data_root, "images", path[:-1]) for path in all_image_paths]
-
-    image_pose_ds = tf.data.Dataset.from_tensor_slices(all_image_paths)
-    image_pose_ds = image_pose_ds.map(load_and_preprocess_image)
-
-    image_pose_ds = image_pose_ds.batch(batch_size, drop_remainder=True)
-
-    iterator = image_pose_ds.make_one_shot_iterator()
-    dataloader = iterator.get_next()
-
-    return dataloader
 
 def create_dataloader_test_resnet50(data_root, batch_size):
     phase = "valid"

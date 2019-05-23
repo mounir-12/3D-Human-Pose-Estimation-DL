@@ -31,7 +31,7 @@ SAVE_ITER_FREQ = 2000
 SAMPLE_ITER_FREQ = 100
 
 # Model parameters
-NB_STACKS=4
+NB_STACKS=1
 SIGMA=1
 
 # Data parameters

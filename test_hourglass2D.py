@@ -40,7 +40,7 @@ else:
     DATA_PATH = LOCAL_PATH
 
 with tf.Session() as sess:
-    # load image and GT 2d pose
+    # load images
     im = create_dataloader_test(data_root=DATA_PATH, batch_size=BATCH_SIZE)
 
     print("\n", im)
