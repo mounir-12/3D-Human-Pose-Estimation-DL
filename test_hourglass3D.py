@@ -23,10 +23,6 @@ from PIL import Image
 
 # Model parameters
 Z_RES=[1, 2, 4, 64]
-SIGMA=2
-
-# Global Attribute
-BATCH_SIZE = 4
 
 # Path
 list_of_files = glob.glob('./log_HG3D/*')
@@ -41,11 +37,10 @@ else:
 
 with tf.Session() as sess:
     # load images
-    im = create_dataloader_test(data_root=DATA_PATH, batch_size=BATCH_SIZE)
+    im = create_dataloader_test(data_root=DATA_PATH) # load test data with batch_size=1
 
-    print("\n", im)
     # define model
-    model = C2FStackedHourglass(z_res=Z_RES, sigma=SIGMA)
+    model = C2FStackedHourglass(z_res=Z_RES)
     
     # build the model
     all_heatmaps_pred, p3d_pred = model(im, training=False)

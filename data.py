@@ -84,7 +84,7 @@ def create_dataloader_train(data_root, batch_size, batches_to_prefetch=1000, dat
     else:
         return dataloader, means, std
         
-def create_dataloader_test(data_root, batch_size):
+def create_dataloader_test(data_root):
     phase = "valid"
     all_image_paths = open(os.path.join(data_root,"annot","%s_images.txt"%phase)).readlines()
     all_image_paths = [os.path.join(data_root, "images", path[:-1]) for path in all_image_paths]
@@ -92,7 +92,7 @@ def create_dataloader_test(data_root, batch_size):
     image_pose_ds = tf.data.Dataset.from_tensor_slices(all_image_paths)
     image_pose_ds = image_pose_ds.map(load_and_preprocess_image)
 
-    image_pose_ds = image_pose_ds.batch(batch_size)
+    image_pose_ds = image_pose_ds.batch(1, drop_remainder=True) # batch size is 1
 
     iterator = image_pose_ds.make_one_shot_iterator()
     dataloader = iterator.get_next()
