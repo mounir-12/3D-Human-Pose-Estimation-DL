@@ -15,7 +15,7 @@ import numpy as np
 import os, sys
 from tqdm import trange
 import utils
-from data import create_dataloader_train
+from data import create_dataloader_train_resnet50
 import resnet_model
 from resnet50_bones_model import Resnet_50
 import time
@@ -38,6 +38,7 @@ BATCHES_TO_PREFETCH=300
 
 # Paths
 CURR_DIR = "."
+tfhub_module = 'https://tfhub.dev/google/imagenet/resnet_v2_50/feature_vector/1'
 LOG_PATH = os.path.join(CURR_DIR, "log", utils.timestamp())
 CHECKPOINTS_PATH = os.path.join(LOG_PATH, "checkpoints")
 CLUSTER_PATH = "/cluster/project/infk/hilliges/lectures/mp19/project2/"
@@ -50,10 +51,10 @@ config = tf.ConfigProto()
 config.gpu_options.allow_growth = True
 config.gpu_options.visible_device_list = "0"
 with tf.Session(config=config) as sess:
-    dataset, p3d_mean, p3d_std = create_dataloader_train(data_root=DATA_PATH, batch_size=BATCH_SIZE, batches_to_prefetch=BATCHES_TO_PREFETCH, data_to_load=DATA_TO_LOAD, shuffle=SHUFFLE)
+    dataset, p3d_mean, p3d_std = create_dataloader_train_resnet50(data_root=DATA_PATH, batch_size=BATCH_SIZE, batches_to_prefetch=BATCHES_TO_PREFETCH, data_to_load=DATA_TO_LOAD, shuffle=SHUFFLE)
     im, pose_gt = dataset # split the pairs (i,e unzip the tuple). When running one, the other also moves to the next elem (i,e same iterator)
 
-    model = Resnet_50(nb_joints = 17, tfhub_module)
+    model = Resnet_50(nb_joints = 17, tfhub_module=tfhub_module)
     pose_pred = model(im)
 
     loss = model.compute_loss(pose_gt, pose_pred)
@@ -65,6 +66,10 @@ with tf.Session(config=config) as sess:
     train_writer = tf.summary.FileWriter(CHECKPOINTS_PATH, sess.graph)
 
     saver = tf.train.Saver(tf.global_variables())
+
+    init = tf.global_variables_initializer()
+
+    sess.run(init)
 
     with trange(int(NUM_EPOCHS * NUM_SAMPLES / BATCH_SIZE)) as t:
         for i in t:

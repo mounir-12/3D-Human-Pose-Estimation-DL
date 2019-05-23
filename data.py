@@ -23,7 +23,7 @@ def preprocess_image(image):
 
 def preprocess_image_resnet50(image, height, width):
     image = tf.image.decode_jpeg(image, channels=3)
-    image = tf.image.resize(image, (height, width))
+    image = tf.image.resize_images(image, (height, width))
     image = tf.cast(image,tf.float32) / 255.
     return image
 
@@ -36,13 +36,15 @@ def load_and_preprocess_image_and_pose(path, pose):
 
 def load_and_preprocess_image_and_pose_resnet50(path, pose):
     image = tf.read_file(path)
-    image = preprocess_image(image)
+    height = 224
+    width = 224
+    image = preprocess_image_resnet50(image, height, width)
     pose = tf.cast(pose,tf.float32)
     return image,pose
 
 def load_and_preprocess_image(path):
     image = tf.read_file(path)
-    image = preprocess_image_resnet50(image)
+    image = preprocess_image(image)
     return image
 
 def load_and_preprocess_image_renet50(path):
@@ -113,7 +115,8 @@ def create_dataloader_train_resnet50(data_root, batch_size, batches_to_prefetch=
     image_pose_ds = image_pose_ds.map(load_and_preprocess_image_and_pose_resnet50) # load images
 
     image_pose_ds = image_pose_ds.repeat() # repeat dataset indefinitely
-    image_pose_ds = image_pose_ds.batch(batch_size, drop_remainder=True) # batch data
+    # image_pose_ds = image_pose_ds.batch(batch_size, drop_remainder=True) # batch data
+    image_pose_ds = image_pose_ds.batch(batch_size) # batch data
     image_pose_ds.prefetch(batches_to_prefetch)
     
     iterator = image_pose_ds.make_one_shot_iterator() # create iterator
