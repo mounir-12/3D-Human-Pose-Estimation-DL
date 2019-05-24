@@ -12,7 +12,7 @@ current/future students or other parties.
 
 import tensorflow as tf
 import numpy as np
-import os, sys
+import os, sys, gc
 from tqdm import trange
 import utils
 from data import create_dataset_train
@@ -141,5 +141,16 @@ with tf.Session(config=config) as sess:
             # save model
             if (i+1) % SAVE_ITER_FREQ == 0:
                 saver.save(sess,os.path.join(CHECKPOINTS_PATH,"model"),global_step=i+1)
-
+                gc.collect() # free-up memory once model saved
+            
+            if (i+1) % (NUM_SAMPLES // BATCH_SIZE) == 0: # we finished an epoch
+                nb_valid_batches = VALID_SIZE // BATCH_SIZE
+                losses_mpjpes = np.empty([nb_valid_batches, 2]) # 1st column for losses, 2nd column for mpjpes
+                for j in range(nb_valid_batches): # validate on the whole validation set
+                    losses_mpjpes[j] = sess.run([loss, mpjpe], valid_feed_dict)
+                mean_loss = np.mean(losses_mpjpes[:, 0])
+                mean_mpjpe = np.mean(losses_mpjpes[:, 1])
+                print("mean valid loss: {}, mean valid mpjpe: {}".format(mean_loss, mean_mpjpe))
+                    
+            
     saver.save(sess,os.path.join(CHECKPOINTS_PATH,"model"),global_step=int(NUM_EPOCHS * NUM_SAMPLES / BATCH_SIZE)) # save at the end of training
