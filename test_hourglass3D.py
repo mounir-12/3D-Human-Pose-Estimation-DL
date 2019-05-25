@@ -21,6 +21,8 @@ import math
 from hourglass3D_model import C2FStackedHourglass
 from PIL import Image
 
+NUM_SAMPLES = 10987
+
 # Model parameters
 Z_RES=[1, 2, 4, 64]
 
@@ -51,7 +53,7 @@ with tf.Session() as sess:
     saver.restore(sess,tf.train.latest_checkpoint(RESTORE_PATH))
 
     predictions = None
-    with trange(math.ceil(10987/BATCH_SIZE)) as t: # generate predictions for all images
+    with trange(NUM_SAMPLES) as t: # generate predictions for all images
         for i in t:
             image, p3d_out_value = sess.run([im, p3d_pred])
             
