@@ -69,7 +69,17 @@ with tf.Session() as sess:
     predictions = predictions.reshape([-1, 51])
     print(predictions.shape)
     utils.generate_submission_3d(predictions, "submission.csv.gz")
-#    utils.create_zip_code_files("code.zip")
+    submission_files = [
+        "data.py",
+        "hourglass3D_model",
+        "test_hourglass3D.py",
+        "train_hourglass3D.py",
+        "layers.py",
+        "setup.py",
+        "utils.py",
+        "vis.py"
+    ]
+    utils.create_zip_code_files("code.zip", submission_files)
 
 
 

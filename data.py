@@ -46,7 +46,7 @@ def load_and_preprocess_image_and_poses(path, pose2d, pose3d):
     pose3d = tf.cast(pose3d,tf.float32)
     return image,pose2d,pose3d
 
-def create_dataset_train(data_root, batch_size, valid_subject=None, batches_to_prefetch=1000, data_to_load="pose3d", shuffle=True): # returns a dataset i,e not an iterator
+def create_dataloader_train(data_root, batch_size, valid_subject=None, batches_to_prefetch=1000, data_to_load="pose3d", shuffle=True):
     print("\nCreating Dataset...")
     phase = "train"
     all_image_names = open(os.path.join(data_root,"annot","%s_images.txt"%phase)).readlines() # read all lines ('\n' included)
@@ -115,11 +115,15 @@ def create_dataset_train(data_root, batch_size, valid_subject=None, batches_to_p
     train_ds = train_ds.batch(batch_size, drop_remainder=True) # batch data
     train_ds = train_ds.prefetch(batches_to_prefetch)
     
+    train_ds = train_ds.make_one_shot_iterator().get_next() # convert to iterator
+    
     if valid_subject is not None: # batch and prefetech validation data
         valid_ds = valid_ds.repeat() # repeat dataset indefinitely
         valid_ds = valid_ds.batch(batch_size, drop_remainder=True) # batch data
         valid_ds = valid_ds.prefetch(batches_to_prefetch)
-
+        
+        valid_ds = valid_ds.make_one_shot_iterator().get_next() # convert to iterator
+    
     # decide what to return
     to_return = [train_ds] # list of objects to return
     

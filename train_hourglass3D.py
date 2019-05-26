@@ -15,7 +15,7 @@ import numpy as np
 import os, sys, gc
 from tqdm import trange
 import utils
-from data import create_dataset_train
+from data import create_dataloader_train, create_dataloader_test
 from hourglass3D_model import C2FStackedHourglass
 import time
 from PIL import Image
@@ -57,49 +57,49 @@ config.gpu_options.visible_device_list = "0"
 with tf.Session(config=config) as sess:
     
     # load dataset of batched (image, pose2d, pose3d)
-    train_ds, valid_ds, VALID_SIZE, _, _ = create_dataset_train(data_root=DATA_PATH, batch_size=BATCH_SIZE, valid_subject=VALID_SUBJECT, 
-                                                               batches_to_prefetch=BATCHES_TO_PREFETCH, data_to_load=DATA_TO_LOAD, shuffle=SHUFFLE)
+    train_ds, valid_ds, VALID_SIZE, _, _ = create_dataloader_train(data_root=DATA_PATH, batch_size=BATCH_SIZE, valid_subject=VALID_SUBJECT, 
+                                                                   batches_to_prefetch=BATCHES_TO_PREFETCH, data_to_load=DATA_TO_LOAD, shuffle=SHUFFLE)
     NUM_SAMPLES = NUM_SAMPLES - VALID_SIZE # update NUM_SAMPLES
-    # create a feedable/generic iterator (i,e an iterator to which we can feed any dataset's iterator)
-    handle = tf.placeholder(tf.string, shape=[]) # handle (i,e string) used to refer to which dataset's iterator (train or valid) is to be used
-    generic_iterator = tf.data.Iterator.from_string_handle(handle, train_ds.output_types, train_ds.output_shapes) # create generic_iterator that can refer to train_iterator or valid_iterator
-                                                                                            # (depending on the handle fed to the placeholder, if fed the train_iterator_handle, then generic_iterator
-                                                                                            # is the train_iterator but if fed the valid_iterator_handle then generic_iterator is valid_iterator)
-    im, p3d_gt = generic_iterator.get_next() # split the data
-    
-    train_iterator = train_ds.make_one_shot_iterator() # create train iterator
-    train_handle = sess.run(train_iterator.string_handle()) # get train_iterator_handle (i,e string id refering to train_iterator) 
-                                                            # -> to be fed to "handle" when using training data (i,e when training)
-    valid_iterator = valid_ds.make_one_shot_iterator() # create valid iterator
-    valid_handle = sess.run(valid_iterator.string_handle()) # get valid_iterator_handle (i,e string id refering to the valid iterator)
-                                                            # -> to be fed to "handle" when using validation data (i,e when validating)
+    im_train, p3d_gt_train = train_ds
+    im_valid, p3d_gt_valid = valid_ds
     
 #    sys.exit(0)
 
     print("Building model...\n")
-    # define model
-    model = C2FStackedHourglass(z_res=Z_RES, sigma=SIGMA)
+
+    # define and build the model
+    with tf.variable_scope("model", reuse=False):
+        model_train = C2FStackedHourglass(z_res=Z_RES, sigma=SIGMA)
+        all_heatmaps_pred_train, p3d_pred_train = model_train(im_train, True)
+        
+    with tf.variable_scope("model", reuse=True):
+        model_valid = C2FStackedHourglass(z_res=Z_RES, sigma=SIGMA)
+        all_heatmaps_pred_valid, p3d_pred_valid = model_valid(im_valid, False)
     
-    # build the model
-    training = tf.placeholder(tf.bool) # will be true when training and false when validating
-    all_heatmaps_pred, p3d_pred = model(im, training)
+    # test data
+    im_test = create_dataloader_test(data_root=DATA_PATH) # load test data with batch_size=1
+    with tf.variable_scope("model", reuse=True):
+        model_test = C2FStackedHourglass(z_res=Z_RES, sigma=SIGMA)
+        all_heatmaps_pred_test, p3d_pred_test = model_test(im_test, False)
+    
 #    sys.exit(0)
     
     # compute loss
-    loss = model.compute_loss(p3d_gt, all_heatmaps_pred)
+    loss_train = model_train.compute_loss(p3d_gt_train, all_heatmaps_pred_train)
+    loss_valid = model_valid.compute_loss(p3d_gt_valid, all_heatmaps_pred_valid)
 #    sys.exit(0)
 
     # define trainer
-    train_op, global_step = model.get_train_op(loss, learning_rate=LEARNING_RATE)
+    train_op, global_step = model_train.get_train_op(loss_train, learning_rate=LEARNING_RATE)
 #    sys.exit(0)
 
-    mpjpe = utils.compute_MPJPE(p3d_pred,p3d_gt)
+    mpjpe_train = utils.compute_MPJPE(p3d_pred_train,p3d_gt_train)
+    mpjpe_valid = utils.compute_MPJPE(p3d_pred_valid,p3d_gt_valid)
     
     # visualization related
 
-    train_loss = tf.summary.scalar("train_loss", loss)
-    train_mpjpe = tf.summary.scalar("train_mpjpe", mpjpe)
-    train_summary = tf.summary.merge([train_loss, train_mpjpe])
+    train_summary = tf.summary.merge([tf.summary.scalar("train_loss", loss_train),
+                                     tf.summary.scalar("train_mpjpe", mpjpe_train)])
     
     valid_loss_pl = tf.placeholder(dtype=tf.float32)
     valid_mpjpe_pl = tf.placeholder(dtype=tf.float32)
@@ -115,8 +115,6 @@ with tf.Session(config=config) as sess:
     saver = tf.train.Saver(tf.global_variables())
 
     # training loop
-    train_feed_dict={handle: train_handle, training: True} # feed dict for training
-    valid_feed_dict={handle: valid_handle, training: False} # feed dict for validation
     print("Training start ...\n")
     with trange(int(NUM_EPOCHS * (NUM_SAMPLES // BATCH_SIZE))) as t:
         for i in t:
@@ -126,20 +124,21 @@ with tf.Session(config=config) as sess:
             iter_cur = (i * BATCH_SIZE ) % NUM_SAMPLES # nb of images processed in current epoch
             t.set_postfix(epoch=epoch_cur,iter_percent="%d %%"%(iter_cur/float(NUM_SAMPLES)*100) ) # update displayed info, iter_percent = percentage of completion of current iteration (i,e epoch)
 
-            if (i+1) % VALID_ITER_FREQ == 0: # validation
+            if (i+1) % 5 == 0: # validation
                 valid_loss = 0
                 valid_mpjpe = 0
                 global_step_val = sess.run(global_step) # get the global step value
                 for j in range(VALID_STEPS):
                     if j == 0: # when j == 0 we also output an image for visualization
-                        images, p3d_gt_vals, p3d_pred_vals, loss_val, mpjpe_val = sess.run([im, p3d_gt, p3d_pred, loss, mpjpe], valid_feed_dict) # get valid loss and mpjpe on 1 batch
+                        images, p3d_gt_vals, p3d_pred_vals, loss_val, mpjpe_val = sess.run([im_valid, p3d_gt_valid, p3d_pred_valid, 
+                                                                                           loss_valid, mpjpe_valid]) # get valid loss and mpjpe on 1 batch
                         
-                        index = numpy.random.randint(BATCH_SIZE) # pick a random index to visualize
+                        index = np.random.randint(BATCH_SIZE) # pick a random index to visualize
                         image = ((images[index]+1)*128.0).transpose(1,2,0).astype("uint8") # unnormalize, put in channels_last format and cast to uint8
                         save_dir = os.path.join(LOG_PATH, "valid_samples")
                         utils.save_p3d_image(image, p3d_gt_vals[index], p3d_pred_vals[index], save_dir, global_step_val+1) # save the a random image of the batch with its predicted pose
                     else:
-                        loss_val, mpjpe_val = sess.run([loss, mpjpe], valid_feed_dict) # get valid loss and mpjpe on 1 batch
+                        loss_val, mpjpe_val = sess.run([loss_valid, mpjpe_valid]) # get valid loss and mpjpe on 1 batch
                     
                     valid_loss += loss_val / VALID_STEPS # add to the mean
                     valid_mpjpe += mpjpe_val / VALID_STEPS # add to the mean
@@ -148,21 +147,54 @@ with tf.Session(config=config) as sess:
                 writer.add_summary(summary, global_step_val+1)
                 
             if (i+1) % LOG_ITER_FREQ == 0: # if it's time log train summaries
-                _, summary = sess.run([train_op, train_summary], train_feed_dict) # get train summaries
+                _, summary = sess.run([train_op, train_summary]) # get train summaries
                 global_step_val = sess.run(global_step)
                 writer.add_summary(summary, global_step_val+1)
                 
             else: # otherwise, just train
-                _, = sess.run([train_op], train_feed_dict)
+                _, = sess.run([train_op])
 
             # save model
-            if (i+1) % SAVE_ITER_FREQ == 0:
+            if (i+1) % 10 == 0:
                 global_step_val = sess.run(global_step) # get the global step value
                 saver.save(sess,os.path.join(CHECKPOINTS_PATH,"model"),global_step=global_step_val+1)
                 gc.collect() # free-up memory once model saved
             
-            if (i+1) % (NUM_SAMPLES // BATCH_SIZE) == 0: # we finished an epoch
-                print("Done an epoch")
+            if (i+1) % 20 == 0: # we finished an epoch, we predict on test set
+                print("End of epoch, saving model ...")
+                global_step_val = sess.run(global_step) # get the global step value
+                saver.save(sess,os.path.join(CHECKPOINTS_PATH,"model"),global_step=global_step_val+1)
+                print("Predicting on test set...")
+                predictions = None
+                NUM_SAMPLES_TEST = 10987
+                with trange(NUM_SAMPLES_TEST) as t_test: # generate predictions for all images
+                    for j in t_test:
+                        p3d_out_value = sess.run([p3d_pred_test])
+
+                        if predictions is None:
+                            predictions = p3d_out_value
+                        else:
+                            predictions = np.concatenate([predictions,p3d_out_value],axis=0)
+
+                predictions = predictions.reshape([-1, 51])
+                print("Predictions shape:", predictions.shape)
+                
+                submissions_dir = os.path.join(LOG_PATH, "submissions")
+                if not os.path.exists(submissions_dir):
+                    os.makedirs(submissions_dir)
+                utils.generate_submission_3d(predictions, "submission_{}.csv.gz".format(global_step_val+1))
+                
+                submission_files = [
+                    "data.py",
+                    "hourglass3D_model",
+                    "test_hourglass3D.py",
+                    "train_hourglass3D.py",
+                    "layers.py",
+                    "setup.py",
+                    "utils.py",
+                    "vis.py"
+                ]
+                utils.create_zip_code_files("code.zip".format(global_step_val), submission_files)
                     
-            
-    saver.save(sess,os.path.join(CHECKPOINTS_PATH,"model"),global_step=int(NUM_EPOCHS * NUM_SAMPLES / BATCH_SIZE)) # save at the end of training
+    global_step_val = sess.run(global_step) # get the global step value
+    saver.save(sess,os.path.join(CHECKPOINTS_PATH,"model"),global_step=global_step_val+1) # save at the end of training

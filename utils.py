@@ -236,15 +236,5 @@ def save_2d_pred(predictions, out_path):
     header = ",".join(header)
     np.savetxt(out_path, predictions, delimiter=',', header=header, comments='')
 
-
-submission_files = [
-    "data.py",
-    "resnet_model.py",
-    "test.py",
-    "train.py",
-    "utils.py",
-    "vis.py"
-]
-
-def create_zip_code_files(output_file):
+def create_zip_code_files(output_file, submission_files):
     patoolib.create_archive(output_file, submission_files)
