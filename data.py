@@ -80,8 +80,6 @@ def create_dataset_train(data_root, batch_size, valid_subject=None, batches_to_p
         if valid_subject is not None: # create train and validation datasets
             train_ds = tf.data.Dataset.from_tensor_slices((train_image_paths, train_pose2d, train_pose3d))
             valid_ds = tf.data.Dataset.from_tensor_slices((valid_image_paths, valid_pose2d, valid_pose3d))
-            train_ds = train_ds.map(processing_func)
-            valid_ds = valid_ds.map(processing_func)
         else: # create only train dataset
             train_ds = tf.data.Dataset.from_tensor_slices((all_image_paths, annotations["pose2d"], annotations["pose3d"]))
     else:
@@ -93,10 +91,9 @@ def create_dataset_train(data_root, batch_size, valid_subject=None, batches_to_p
                 train_pose, valid_pose = [train_pose2d, valid_pose2d]
             else:
                 train_pose, valid_pose = [train_pose3d, valid_pose3d]
+            
             train_ds = tf.data.Dataset.from_tensor_slices((train_image_paths, train_pose))
             valid_ds = tf.data.Dataset.from_tensor_slices((valid_image_paths, valid_pose))
-            train_ds = train_ds.map(processing_func)
-            valid_ds = valid_ds.map(processing_func)
         else: # create only train dataset
             train_ds = tf.data.Dataset.from_tensor_slices((all_image_paths, annotations[data_to_load]))
     
@@ -107,6 +104,11 @@ def create_dataset_train(data_root, batch_size, valid_subject=None, batches_to_p
             valid_ds = valid_ds.shuffle(buffer_size=len(valid_indices))
         else: # shuffle only train dataset
             train_ds = train_ds.shuffle(buffer_size=len(all_image_paths))
+
+    print("Mapping Data...")
+    train_ds = train_ds.map(processing_func)
+    if valid_subject is not None:
+        valid_ds = valid_ds.map(processing_func)
 
     print("Batching Data...")
     train_ds = train_ds.repeat() # repeat dataset indefinitely
