@@ -21,8 +21,6 @@ import time
 from PIL import Image
 
 NUM_SAMPLES= 312188
-VALID_SIZE= 2188
-NUM_SAMPLES = NUM_SAMPLES - VALID_SIZE # update NUM_SAMPLES
 
 # Train parameters
 NUM_EPOCHS = 2
@@ -31,9 +29,11 @@ LEARNING_RATE = 2.5*10**(-4)
 LOG_ITER_FREQ = 100
 VALID_ITER_FREQ = 500
 SAVE_ITER_FREQ = 2000
+VALID_SUBJECT="S1"
+VALID_STEPS = 10 # number of validation batches to use to compute the mean validation loss and mpjpe
 
 # Model parameters
-Z_RES=[1, 2, 4, 64]
+Z_RES=[1, 64]
 SIGMA=2
 
 # Data parameters
@@ -57,8 +57,9 @@ config.gpu_options.visible_device_list = "0"
 with tf.Session(config=config) as sess:
     
     # load dataset of batched (image, pose2d, pose3d)
-    train_ds, valid_ds, _, _ = create_dataset_train(data_root=DATA_PATH, batch_size=BATCH_SIZE, valid_size=VALID_SIZE, 
-                                                    batches_to_prefetch=BATCHES_TO_PREFETCH, data_to_load=DATA_TO_LOAD, shuffle=SHUFFLE)
+    train_ds, valid_ds, VALID_SIZE, _, _ = create_dataset_train(data_root=DATA_PATH, batch_size=BATCH_SIZE, valid_subject=VALID_SUBJECT, 
+                                                               batches_to_prefetch=BATCHES_TO_PREFETCH, data_to_load=DATA_TO_LOAD, shuffle=SHUFFLE)
+    NUM_SAMPLES = NUM_SAMPLES - VALID_SIZE # update NUM_SAMPLES
     # create a feedable/generic iterator (i,e an iterator to which we can feed any dataset's iterator)
     handle = tf.placeholder(tf.string, shape=[]) # handle (i,e string) used to refer to which dataset's iterator (train or valid) is to be used
     generic_iterator = tf.data.Iterator.from_string_handle(handle, train_ds.output_types, train_ds.output_shapes) # create generic_iterator that can refer to train_iterator or valid_iterator
@@ -75,6 +76,7 @@ with tf.Session(config=config) as sess:
     
 #    sys.exit(0)
 
+    print("Building model...\n")
     # define model
     model = C2FStackedHourglass(z_res=Z_RES, sigma=SIGMA)
     
@@ -99,9 +101,10 @@ with tf.Session(config=config) as sess:
     train_mpjpe = tf.summary.scalar("train_mpjpe", mpjpe)
     train_summary = tf.summary.merge([train_loss, train_mpjpe])
     
-    valid_loss = tf.summary.scalar("valid_loss", loss)
-    valid_mpjpe = tf.summary.scalar("valid_mpjpe", mpjpe)
-    valid_summary = tf.summary.merge([valid_loss, valid_mpjpe])
+    valid_loss_pl = tf.placeholder(dtype=tf.float32)
+    valid_mpjpe_pl = tf.placeholder(dtype=tf.float32)
+    valid_summary = tf.summary.merge([tf.summary.scalar("valid_loss", valid_loss_pl), 
+                                      tf.summary.scalar("valid_mpjpe", valid_mpjpe_pl)])
     
     writer = tf.summary.FileWriter(CHECKPOINTS_PATH, sess.graph)
 
@@ -114,7 +117,8 @@ with tf.Session(config=config) as sess:
     # training loop
     train_feed_dict={handle: train_handle, training: True} # feed dict for training
     valid_feed_dict={handle: valid_handle, training: False} # feed dict for validation
-    with trange(int(NUM_EPOCHS * NUM_SAMPLES / BATCH_SIZE)) as t:
+    print("Training start ...\n")
+    with trange(int(NUM_EPOCHS * (NUM_SAMPLES // BATCH_SIZE))) as t:
         for i in t:
 
 	        # display training status
@@ -122,35 +126,43 @@ with tf.Session(config=config) as sess:
             iter_cur = (i * BATCH_SIZE ) % NUM_SAMPLES # nb of images processed in current epoch
             t.set_postfix(epoch=epoch_cur,iter_percent="%d %%"%(iter_cur/float(NUM_SAMPLES)*100) ) # update displayed info, iter_percent = percentage of completion of current iteration (i,e epoch)
 
-            # vis
-            if (i+1) % VALID_ITER_FREQ == 0:
-                images, p3d_gt_vals, p3d_pred_vals, summary = sess.run([im, p3d_gt, p3d_pred, valid_summary], valid_feed_dict) # get valid summaries on 1 batch
-                writer.add_summary(summary, i+1)
-                
-                image = ((images[0]+1)*128.0).transpose(1,2,0).astype("uint8") # unnormalize, put in channels_last format and cast to uint8
-                save_dir = os.path.join(LOG_PATH, "valid_samples")
-                utils.save_p3d_image(image, p3d_gt_vals[0], p3d_pred_vals[0], save_dir, i+1) # save the 1st image of the batch with its predicted pose
+            if (i+1) % VALID_ITER_FREQ == 0: # validation
+                valid_loss = 0
+                valid_mpjpe = 0
+                global_step_val = sess.run(global_step) # get the global step value
+                for j in range(VALID_STEPS):
+                    if j == 0: # when j == 0 we also output an image for visualization
+                        images, p3d_gt_vals, p3d_pred_vals, loss_val, mpjpe_val = sess.run([im, p3d_gt, p3d_pred, loss, mpjpe], valid_feed_dict) # get valid loss and mpjpe on 1 batch
+                        
+                        index = numpy.random.randint(BATCH_SIZE) # pick a random index to visualize
+                        image = ((images[index]+1)*128.0).transpose(1,2,0).astype("uint8") # unnormalize, put in channels_last format and cast to uint8
+                        save_dir = os.path.join(LOG_PATH, "valid_samples")
+                        utils.save_p3d_image(image, p3d_gt_vals[index], p3d_pred_vals[index], save_dir, global_step_val+1) # save the a random image of the batch with its predicted pose
+                    else:
+                        loss_val, mpjpe_val = sess.run([loss, mpjpe], valid_feed_dict) # get valid loss and mpjpe on 1 batch
                     
+                    valid_loss += loss_val / VALID_STEPS # add to the mean
+                    valid_mpjpe += mpjpe_val / VALID_STEPS # add to the mean
+                
+                summary = sess.run(valid_summary, {valid_loss_pl: valid_loss, valid_mpjpe_pl: valid_mpjpe})
+                writer.add_summary(summary, global_step_val+1)
+                
             if (i+1) % LOG_ITER_FREQ == 0: # if it's time log train summaries
                 _, summary = sess.run([train_op, train_summary], train_feed_dict) # get train summaries
-                writer.add_summary(summary, i+1)
+                global_step_val = sess.run(global_step)
+                writer.add_summary(summary, global_step_val+1)
                 
             else: # otherwise, just train
                 _, = sess.run([train_op], train_feed_dict)
 
             # save model
             if (i+1) % SAVE_ITER_FREQ == 0:
-                saver.save(sess,os.path.join(CHECKPOINTS_PATH,"model"),global_step=i+1)
+                global_step_val = sess.run(global_step) # get the global step value
+                saver.save(sess,os.path.join(CHECKPOINTS_PATH,"model"),global_step=global_step_val+1)
                 gc.collect() # free-up memory once model saved
             
             if (i+1) % (NUM_SAMPLES // BATCH_SIZE) == 0: # we finished an epoch
-                nb_valid_batches = VALID_SIZE // BATCH_SIZE
-                losses_mpjpes = np.empty([nb_valid_batches, 2]) # 1st column for losses, 2nd column for mpjpes
-                for j in range(nb_valid_batches): # validate on the whole validation set
-                    losses_mpjpes[j] = sess.run([loss, mpjpe], valid_feed_dict)
-                mean_loss = np.mean(losses_mpjpes[:, 0])
-                mean_mpjpe = np.mean(losses_mpjpes[:, 1])
-                print("mean valid loss: {}, mean valid mpjpe: {}".format(mean_loss, mean_mpjpe))
+                print("Done an epoch")
                     
             
     saver.save(sess,os.path.join(CHECKPOINTS_PATH,"model"),global_step=int(NUM_EPOCHS * NUM_SAMPLES / BATCH_SIZE)) # save at the end of training

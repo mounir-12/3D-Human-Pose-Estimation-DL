@@ -46,43 +46,74 @@ def load_and_preprocess_image_and_poses(path, pose2d, pose3d):
     pose3d = tf.cast(pose3d,tf.float32)
     return image,pose2d,pose3d
 
-def create_dataset_train(data_root, batch_size, valid_size=0, batches_to_prefetch=1000, data_to_load="pose3d", shuffle=True): # returns a dataset i,e not an iterator
+def create_dataset_train(data_root, batch_size, valid_subject=None, batches_to_prefetch=1000, data_to_load="pose3d", shuffle=True): # returns a dataset i,e not an iterator
+    print("\nCreating Dataset...")
     phase = "train"
-    all_image_paths = open(os.path.join(data_root,"annot","%s_images.txt"%phase)).readlines() # read all lines ('\n' included)
-    all_image_paths = [os.path.join(data_root, "images", path[:-1]) for path in all_image_paths] # construct paths removing '\n'
+    all_image_names = open(os.path.join(data_root,"annot","%s_images.txt"%phase)).readlines() # read all lines ('\n' included)
+    all_image_paths = [os.path.join(data_root, "images", path[:-1]) for path in all_image_names] # construct paths removing '\n'
 
     annotations_path = os.path.join(data_root,"annot","%s.h5"%phase)
     annotations = h5py.File(annotations_path, 'r')
+
+    if valid_subject is not None:
+        valid_indices = set([i for i in range(len(all_image_names)) if all_image_names[i].split("_")[0] == valid_subject])
+        print("Validation subject: ", valid_subject)
+        print("Validation set size: ", len(valid_indices))
+        min_valid_index, max_valid_index = min(valid_indices), max(valid_indices)
+        # split dataset to train and validation
+        train_image_paths = all_image_paths[:min_valid_index] + all_image_paths[max_valid_index+1:]
+        train_pose2d = np.concatenate([annotations["pose2d"][:min_valid_index],annotations["pose2d"][max_valid_index+1:]])
+        train_pose3d = np.concatenate([annotations["pose3d"][:min_valid_index],annotations["pose3d"][max_valid_index+1:]])
+        
+        valid_image_paths = all_image_paths[min_valid_index:max_valid_index+1]
+        valid_pose2d = annotations["pose2d"][min_valid_index:max_valid_index+1]
+        valid_pose3d = annotations["pose3d"][min_valid_index:max_valid_index+1]
+    else:
+        print("No validation set created")
     
     if data_to_load == "all_poses":
-        image_pose_ds = tf.data.Dataset.from_tensor_slices((all_image_paths, annotations["pose2d"], annotations["pose3d"]))
         means_2d = np.mean(annotations["pose2d"], axis=0).flatten()
         std_2d = np.std(annotations["pose2d"], axis=0).flatten()
         means_3d = np.mean(annotations["pose3d"], axis=0).flatten()
         std_3d = np.std(annotations["pose3d"], axis=0).flatten()
         processing_func = load_and_preprocess_image_and_poses # function to call in the map operation below
+        if valid_subject is not None: # create train and validation datasets
+            train_ds = tf.data.Dataset.from_tensor_slices((train_image_paths, train_pose2d, train_pose3d))
+            valid_ds = tf.data.Dataset.from_tensor_slices((valid_image_paths, valid_pose2d, valid_pose3d))
+            train_ds = train_ds.map(processing_func)
+            valid_ds = valid_ds.map(processing_func)
+        else: # create only train dataset
+            train_ds = tf.data.Dataset.from_tensor_slices((all_image_paths, annotations["pose2d"], annotations["pose3d"]))
     else:
-        image_pose_ds = tf.data.Dataset.from_tensor_slices((all_image_paths, annotations[data_to_load])) # dataset of zipped paths and 3D poses (i,e tuples)
         means = np.mean(annotations[data_to_load], axis=0).flatten()
         std = np.std(annotations[data_to_load], axis=0).flatten()
         processing_func = load_and_preprocess_image_and_pose # function to call in the map operation below
+        if valid_subject is not None: # create train and validation datasets
+            if data_to_load == "pose2d":
+                train_pose, valid_pose = [train_pose2d, valid_pose2d]
+            else:
+                train_pose, valid_pose = [train_pose3d, valid_pose3d]
+            train_ds = tf.data.Dataset.from_tensor_slices((train_image_paths, train_pose))
+            valid_ds = tf.data.Dataset.from_tensor_slices((valid_image_paths, valid_pose))
+            train_ds = train_ds.map(processing_func)
+            valid_ds = valid_ds.map(processing_func)
+        else: # create only train dataset
+            train_ds = tf.data.Dataset.from_tensor_slices((all_image_paths, annotations[data_to_load]))
     
     if shuffle:
-        image_pose_ds = image_pose_ds.shuffle(buffer_size=len(all_image_paths)) # shuffle
-        
-    image_pose_ds = image_pose_ds.map(processing_func) # load images
-    
-    if valid_size > 0: # split into train and validation sets
-        valid_ds = image_pose_ds.take(valid_size)
-        train_ds = image_pose_ds.skip(valid_size)
-    else: # the data is for training
-        train_ds = image_pose_ds
+        print("Shuffling data...")
+        if valid_subject is not None: # shuffle both train and validation dataset
+            train_ds = train_ds.shuffle(buffer_size=len(all_image_paths) - len(valid_indices))
+            valid_ds = valid_ds.shuffle(buffer_size=len(valid_indices))
+        else: # shuffle only train dataset
+            train_ds = train_ds.shuffle(buffer_size=len(all_image_paths))
 
+    print("Batching Data...")
     train_ds = train_ds.repeat() # repeat dataset indefinitely
     train_ds = train_ds.batch(batch_size, drop_remainder=True) # batch data
     train_ds = train_ds.prefetch(batches_to_prefetch)
     
-    if valid_size > 0: # batch and prefetech validation data, create iterator
+    if valid_subject is not None: # batch and prefetech validation data
         valid_ds = valid_ds.repeat() # repeat dataset indefinitely
         valid_ds = valid_ds.batch(batch_size, drop_remainder=True) # batch data
         valid_ds = valid_ds.prefetch(batches_to_prefetch)
@@ -90,14 +121,16 @@ def create_dataset_train(data_root, batch_size, valid_size=0, batches_to_prefetc
     # decide what to return
     to_return = [train_ds] # list of objects to return
     
-    if valid_size > 0:
+    if valid_subject is not None:
         to_return.append(valid_ds)
+        to_return.append(len(valid_indices)) # also return size of validation data
     
     if data_to_load == "all_poses":
         to_return = to_return + [means_2d, std_2d, means_3d, std_3d] # return 2d and 3d means and std
     else:
         to_return = to_return + [means, std] # return means and std of loaded poses
     
+    print("Done ...\n")
     return to_return
         
 def create_dataloader_test(data_root): # return a dataloader i,e an iterator
