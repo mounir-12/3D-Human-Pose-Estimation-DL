@@ -167,7 +167,7 @@ with tf.Session(config=config) as sess:
                 gc.collect() # free-up memory once model saved
             
             # we finished an epoch, we predict on test set
-            if TEST_EVERY_EPOCH and (i+1) % 5 == 0:
+            if TEST_EVERY_EPOCH and (i+1) % (NUM_SAMPLES // BATCH_SIZE) == 0:
                 print("End of epoch, saving model ...")
                 global_step_val = sess.run(global_step) # get the global step value
                 saver.save(sess,os.path.join(CHECKPOINTS_PATH,"model"),global_step=global_step_val+1)
