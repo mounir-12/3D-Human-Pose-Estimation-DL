@@ -140,18 +140,21 @@ def create_dataloader_train(data_root, batch_size, valid_subject=None, batches_t
     return to_return
         
 def create_dataloader_test(data_root): # return a dataloader i,e an iterator
+    print("Generating test dataset")
     phase = "valid"
     all_image_paths = open(os.path.join(data_root,"annot","%s_images.txt"%phase)).readlines()
     all_image_paths = [os.path.join(data_root, "images", path[:-1]) for path in all_image_paths]
 
-    image_pose_ds = tf.data.Dataset.from_tensor_slices(all_image_paths)
-    image_pose_ds = image_pose_ds.map(load_and_preprocess_image)
+    image_ds = tf.data.Dataset.from_tensor_slices(all_image_paths)
+    image_ds = image_ds.map(load_and_preprocess_image)
+    image_ds = image_ds.repeat() # repeat forever
 
-    image_pose_ds = image_pose_ds.batch(1, drop_remainder=True) # batch size is 1
+    image_ds = image_ds.batch(1, drop_remainder=True) # batch size is 1
 
-    iterator = image_pose_ds.make_one_shot_iterator()
+    iterator = image_ds.make_one_shot_iterator()
     dataloader = iterator.get_next()
 
+    print("Done ...")
     return dataloader
     
 # -------------------------------------------- Bones Resnet 50 Specific Functions -------------------------------------------------
