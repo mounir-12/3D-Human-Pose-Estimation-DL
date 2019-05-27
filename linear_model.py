@@ -15,6 +15,8 @@ import data_utils
 # import cameras as cam
 import h5py
 
+from sklearn.preprocessing import Normalizer
+
 def kaiming(shape, dtype, partition_info=None):
   """Kaiming initialization as described in https://arxiv.org/pdf/1502.01852.pdf
 
@@ -62,7 +64,7 @@ class LinearModel(object):
     # hourglass detections). We settled with 16 joints in 2d just to make models
     # compatible (e.g. you can train on ground truth 2d and test on SH detections).
     # This does not seem to have an effect on prediction performance.
-    self.HUMAN_2D_SIZE = 16 * 2
+    self.HUMAN_2D_SIZE = 17 * 2
 
     # In 3d all the predictions are zero-centered around the root (hip) joint, so
     # we actually predict only 16 joints. The error is still computed over 17 joints,
@@ -70,7 +72,7 @@ class LinearModel(object):
     # hip to account for!
     # There is also an option to predict only 14 joints, which makes our results
     # directly comparable to those in https://arxiv.org/pdf/1611.09010.pdf
-    self.HUMAN_3D_SIZE = 14 * 3 if predict_14 else 16 * 3
+    self.HUMAN_3D_SIZE = 14 * 3 if predict_14 else 17 * 3
 
     self.input_size  = self.HUMAN_2D_SIZE
     self.output_size = self.HUMAN_3D_SIZE
@@ -150,6 +152,24 @@ class LinearModel(object):
 
     # To save the model
     self.saver = tf.train.Saver( tf.global_variables(), max_to_keep=10 )
+
+    annotations_path = os.path.join('.', "annot", "train.h5")
+    annotations = h5py.File(annotations_path, 'r')
+
+    encoder_inputs = np.array(annotations["pose2d"])
+    decoder_outputs = np.array(annotations["pose3d"])
+
+    enc_shape = encoder_inputs.shape
+    dec_shape = decoder_outputs.shape
+
+    self.encoder_inputs = encoder_inputs.reshape((enc_shape[0], enc_shape[1]*enc_shape[2]))
+    self.decoder_outputs = decoder_outputs.reshape((dec_shape[0], dec_shape[1]*dec_shape[2]))
+
+    self.normalizer = Normalizer().fit(self.encoder_inputs)
+
+    self.encoder_inputs = self.normalizer.transform(self.encoder_inputs)
+
+
 
 
   def two_linear( self, xin, linear_size, residual, dropout_keep_prob, max_norm, batch_norm, dtype, idx ):
@@ -301,23 +321,25 @@ class LinearModel(object):
   #   return encoder_inputs, decoder_outputs
 
 
-  def get_all_batches_new( self, fname, training=True ):
+  def get_all_batches_new( self, training=True ):
 
-    annotations_path = os.path.join('.', "annot", "train.h5")
-    annotations = h5py.File(annotations_path, 'r')
+    # annotations_path = os.path.join('.', "annot", "train.h5")
+    # annotations = h5py.File(annotations_path, 'r')
 
-    encoder_inputs = np.array(annotations["pose2d"])
-    decoder_outputs = np.array(annotations["pose3d"])
+    # encoder_inputs = np.array(annotations["pose2d"])
+    # decoder_outputs = np.array(annotations["pose3d"])
 
-    encoder_inputs = encoder_inputs[:,1:,:]
-    decoder_outputs = decoder_outputs[:,1:,:]
+    # # encoder_inputs = encoder_inputs[:,1:,:]
+    # # decoder_outputs = decoder_outputs[:,1:,:]
 
-    enc_shape = encoder_inputs.shape
-    dec_shape = decoder_outputs.shape
+    # enc_shape = encoder_inputs.shape
+    # dec_shape = decoder_outputs.shape
 
-    encoder_inputs = encoder_inputs.reshape((enc_shape[0], enc_shape[1]*enc_shape[2]))
+    # encoder_inputs = encoder_inputs.reshape((enc_shape[0], enc_shape[1]*enc_shape[2]))
 
-    decoder_outputs = decoder_outputs.reshape((dec_shape[0], dec_shape[1]*dec_shape[2]))
+    # decoder_outputs = decoder_outputs.reshape((dec_shape[0], dec_shape[1]*dec_shape[2]))
+
+
 
 
     # encoder_inputs  = np.loadtxt(fname_2d, skiprows = 1)
@@ -325,15 +347,15 @@ class LinearModel(object):
     # decoder_outputs = np.loadtxt(fname_3d, skiprows = 1)
     # decoder_outputs = decoder_outputs[:,1:]
 
-    n = encoder_inputs.shape[0]
+    n = self.encoder_inputs.shape[0]
 
-    assert n==decoder_outputs.shape[0]
+    assert n==self.decoder_outputs.shape[0]
 
     if training:
       # Randomly permute everything
       idx = np.random.permutation( n )
-      encoder_inputs  = encoder_inputs[idx, :]
-      decoder_outputs = decoder_outputs[idx, :]
+      encoder_inputs  = self.encoder_inputs[idx, :]
+      decoder_outputs = self.decoder_outputs[idx, :]
 
     # Make the number of examples a multiple of the batch size
     n_extra  = n % self.batch_size
@@ -348,3 +370,13 @@ class LinearModel(object):
     return encoder_inputs, decoder_outputs
 
 
+  def get_test_data(self, fname):
+    encoder_inputs  = np.loadtxt(fname_2d, skiprows = 1)
+    encoder_inputs = encoder_inputs[:,1:,:]
+
+    return  encoder_inputs
+
+  def test_step(self, enc_in, sess):
+    input_feed = {self.encoder_inputs: enc_in,self.isTraining: False}
+    output_feed = self.outputs
+    return sess.run(output_feed, input_feed)
