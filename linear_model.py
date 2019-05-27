@@ -265,62 +265,6 @@ class LinearModel(object):
       outputs = session.run(output_feed, input_feed)
       return outputs[0], outputs[1], outputs[2]  # No gradient norm
 
-  # def get_all_batches( self, data_x, data_y, camera_frame, training=True ):
-  #   """
-  #   Obtain a list of all the batches, randomly permutted
-  #   Args
-  #     data_x: dictionary with 2d inputs
-  #     data_y: dictionary with 3d expected outputs
-  #     camera_frame: whether the 3d data is in camera coordinates
-  #     training: True if this is a training batch. False otherwise.
-
-  #   Returns
-  #     encoder_inputs: list of 2d batches
-  #     decoder_outputs: list of 3d batches
-  #   """
-
-  #   # Figure out how many frames we have
-  #   n = 0
-  #   for key2d in data_x.keys():
-  #     n2d, _ = data_x[ key2d ].shape
-  #     n = n + n2d
-
-  #   encoder_inputs  = np.zeros((n, self.input_size), dtype=float)
-  #   decoder_outputs = np.zeros((n, self.output_size), dtype=float)
-
-  #   # Put all the data into big arrays
-  #   idx = 0
-  #   for key2d in data_x.keys():
-  #     (subj, b, fname) = key2d
-  #     # keys should be the same if 3d is in camera coordinates
-  #     key3d = key2d if (camera_frame) else (subj, b, '{0}.h5'.format(fname.split('.')[0]))
-  #     key3d = (subj, b, fname[:-3]) if fname.endswith('-sh') and camera_frame else key3d
-
-  #     n2d, _ = data_x[ key2d ].shape
-  #     encoder_inputs[idx:idx+n2d, :]  = data_x[ key2d ]
-  #     decoder_outputs[idx:idx+n2d, :] = data_y[ key3d ]
-  #     idx = idx + n2d
-
-
-  #   if training:
-  #     # Randomly permute everything
-  #     idx = np.random.permutation( n )
-  #     encoder_inputs  = encoder_inputs[idx, :]
-  #     decoder_outputs = decoder_outputs[idx, :]
-
-  #   # Make the number of examples a multiple of the batch size
-  #   n_extra  = n % self.batch_size
-  #   if n_extra > 0:  # Otherwise examples are already a multiple of batch size
-  #     encoder_inputs  = encoder_inputs[:-n_extra, :]
-  #     decoder_outputs = decoder_outputs[:-n_extra, :]
-
-  #   n_batches = n // self.batch_size
-  #   encoder_inputs  = np.split( encoder_inputs, n_batches )
-  #   decoder_outputs = np.split( decoder_outputs, n_batches )
-
-  #   return encoder_inputs, decoder_outputs
-
-
   def get_all_batches_new( self, training=True ):
 
     # annotations_path = os.path.join('.', "annot", "train.h5")

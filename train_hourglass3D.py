@@ -141,7 +141,7 @@ with tf.Session(config=config) as sess:
                         images, p3d_gt_vals, p3d_pred_vals, loss_val, mpjpe_val = sess.run([im_valid, p3d_gt_valid, p3d_pred_valid, 
                                                                                            loss_valid, mpjpe_valid]) # get valid loss and mpjpe on 1 batch
                         
-                        index = np.random.randint(BATCH_SIZE) # pick a random index to visualize
+                        index = 0 # np.random.randint(BATCH_SIZE) # pick a random index to visualize
                         image = ((images[index]+1)*128.0).transpose(1,2,0).astype("uint8") # unnormalize, put in channels_last format and cast to uint8
                         save_dir = os.path.join(LOG_PATH, "valid_samples")
                         utils.save_p3d_image(image, p3d_gt_vals[index], p3d_pred_vals[index], save_dir, global_step_val) # save the a random image of the batch with its predicted pose
