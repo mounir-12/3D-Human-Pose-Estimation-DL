@@ -57,7 +57,7 @@ tf.app.flags.DEFINE_integer("load", 0, "Try to load a previous checkpoint.")
 tf.app.flags.DEFINE_boolean("use_fp16", False, "Train using fp16 instead of fp32.")
 
 # Predict
-tf.app.flags.DEFINE_boolean("predict_only", False, "Predict on train set")
+tf.app.flags.DEFINE_boolean("predict_only", True, "Predict on train set")
 tf.app.flags.DEFINE_string("test_fname",   "./p2d_test.csv", "Test data file name")
 
 FLAGS = tf.app.flags.FLAGS

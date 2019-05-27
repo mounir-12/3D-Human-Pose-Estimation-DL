@@ -274,8 +274,10 @@ class LinearModel(object):
     if training:
       # Randomly permute everything
       idx = np.random.permutation( n )
+
       gt_inputs  = self.gt_inputs[idx, :]
       gt_outputs = self.gt_outputs[idx, :]
+
 
     # Make the number of examples a multiple of the batch size
     n_extra  = n % self.batch_size
@@ -291,7 +293,8 @@ class LinearModel(object):
 
 
   def get_test_data(self, fname):
-    test_inputs  = np.loadtxt(fname_2d, skiprows = 1)
+    print(fname)
+    test_inputs  = np.loadtxt(fname, skiprows = 1)
     test_inputs = encoder_inputs[:,1:,:]
     print(test_inputs.shape)
     print("\n\n\n")
