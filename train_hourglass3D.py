@@ -24,7 +24,7 @@ NUM_SAMPLES= 312188
 NUM_SAMPLES_TEST = 10987
 
 # Train parameters
-NUM_EPOCHS = 4
+NUM_EPOCHS = 2
 BATCH_SIZE = 4
 LEARNING_RATE = 2.5*10**(-4)
 LOG_ITER_FREQ = 100
@@ -131,6 +131,7 @@ with tf.Session(config=config) as sess:
             t.set_postfix(epoch=epoch_cur,iter_percent="%d %%"%(iter_cur/float(NUM_SAMPLES)*100) ) # update displayed info, iter_percent = percentage of completion of current iteration (i,e epoch)
 
             if (i+1) % VALID_ITER_FREQ == 0: # validation
+                gc.collect() # free-up memory once model saved
                 valid_loss = 0
                 valid_mpjpe = 0
                 global_step_val = sess.run(global_step) # get the global step value
@@ -142,7 +143,7 @@ with tf.Session(config=config) as sess:
                         index = np.random.randint(BATCH_SIZE) # pick a random index to visualize
                         image = ((images[index]+1)*128.0).transpose(1,2,0).astype("uint8") # unnormalize, put in channels_last format and cast to uint8
                         save_dir = os.path.join(LOG_PATH, "valid_samples")
-                        utils.save_p3d_image(image, p3d_gt_vals[index], p3d_pred_vals[index], save_dir, global_step_val+1) # save the a random image of the batch with its predicted pose
+                        utils.save_p3d_image(image, p3d_gt_vals[index], p3d_pred_vals[index], save_dir, global_step_val) # save the a random image of the batch with its predicted pose
                     else:
                         loss_val, mpjpe_val = sess.run([loss_valid, mpjpe_valid]) # get valid loss and mpjpe on 1 batch
                     
@@ -150,12 +151,12 @@ with tf.Session(config=config) as sess:
                     valid_mpjpe += mpjpe_val / VALID_STEPS # add to the mean
                 
                 summary = sess.run(valid_summary, {valid_loss_pl: valid_loss, valid_mpjpe_pl: valid_mpjpe})
-                writer.add_summary(summary, global_step_val+1)
+                writer.add_summary(summary, global_step_val)
                 
             if (i+1) % LOG_ITER_FREQ == 0: # if it's time log train summaries
                 _, summary = sess.run([train_op, train_summary]) # get train summaries
                 global_step_val = sess.run(global_step)
-                writer.add_summary(summary, global_step_val+1)
+                writer.add_summary(summary, global_step_val)
                 
             else: # otherwise, just train
                 _, = sess.run([train_op])
@@ -163,14 +164,14 @@ with tf.Session(config=config) as sess:
             # save model
             if (i+1) % SAVE_ITER_FREQ == 0:
                 global_step_val = sess.run(global_step) # get the global step value
-                saver.save(sess,os.path.join(CHECKPOINTS_PATH,"model"),global_step=global_step_val+1)
+                saver.save(sess,os.path.join(CHECKPOINTS_PATH,"model"),global_step=global_step_val)
                 gc.collect() # free-up memory once model saved
             
             # we finished an epoch, we predict on test set
             if TEST_EVERY_EPOCH and (i+1) % (NUM_SAMPLES // BATCH_SIZE) == 0:
                 print("End of epoch, saving model ...")
                 global_step_val = sess.run(global_step) # get the global step value
-                saver.save(sess,os.path.join(CHECKPOINTS_PATH,"model"),global_step=global_step_val+1)
+                saver.save(sess,os.path.join(CHECKPOINTS_PATH,"model"),global_step=global_step_val)
                 gc.collect() # free-up memory once model saved
                 print("Predicting on test set...")
                 predictions = None
@@ -189,7 +190,7 @@ with tf.Session(config=config) as sess:
                 submissions_dir = os.path.join(LOG_PATH, "submissions")
                 if not os.path.exists(submissions_dir):
                     os.makedirs(submissions_dir)
-                utils.generate_submission_3d(predictions, os.path.join(submissions_dir, "submission_{}.csv.gz".format(global_step_val+1)))
+                utils.generate_submission_3d(predictions, os.path.join(submissions_dir, "submission_{}.csv.gz".format(global_step_val)))
                 
                 submission_files = [
                     "data.py",
@@ -204,4 +205,4 @@ with tf.Session(config=config) as sess:
                 utils.create_zip_code_files(os.path.join(submissions_dir, "code_{}.zip".format(global_step_val)), submission_files)
                     
     global_step_val = sess.run(global_step) # get the global step value
-    saver.save(sess,os.path.join(CHECKPOINTS_PATH,"model"),global_step=global_step_val+1) # save at the end of training
+    saver.save(sess,os.path.join(CHECKPOINTS_PATH,"model"),global_step=global_step_val) # save at the end of training
