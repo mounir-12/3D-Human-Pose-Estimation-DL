@@ -31,7 +31,8 @@ LOG_ITER_FREQ = 100
 VALID_ITER_FREQ = 500
 VALID_STEPS = 10 # number of validation batches to use to compute the mean validation loss and mpjpe
 SAVE_ITER_FREQ = 2000
-VALID_SUBJECT="S1"
+VALID_SUBJECT = "S1"
+VALID_SAMPLES = 2188
 TEST_EVERY_EPOCH = True
 
 # Model parameters
@@ -58,8 +59,8 @@ config.gpu_options.allow_growth = True
 config.gpu_options.visible_device_list = "0"
 with tf.Session(config=config) as sess:
     
-    # load dataset of batched (image, pose2d, pose3d)
-    train_ds, valid_ds, VALID_SIZE, _, _ = create_dataloader_train(data_root=DATA_PATH, batch_size=BATCH_SIZE, valid_subject=VALID_SUBJECT, 
+    # load datasets
+    train_ds, valid_ds, VALID_SIZE, _, _ = create_dataloader_train(data_root=DATA_PATH, batch_size=BATCH_SIZE, valid_size=VALID_SAMPLES,
                                                                    batches_to_prefetch=BATCHES_TO_PREFETCH, data_to_load=DATA_TO_LOAD, shuffle=SHUFFLE)
     NUM_SAMPLES = NUM_SAMPLES - VALID_SIZE # update NUM_SAMPLES
     im_train, p3d_gt_train = train_ds
@@ -131,7 +132,7 @@ with tf.Session(config=config) as sess:
             t.set_postfix(epoch=epoch_cur,iter_percent="%d %%"%(iter_cur/float(NUM_SAMPLES)*100) ) # update displayed info, iter_percent = percentage of completion of current iteration (i,e epoch)
 
             if (i+1) % VALID_ITER_FREQ == 0: # validation
-                gc.collect() # free-up memory once model saved
+                gc.collect() # free-up memory
                 valid_loss = 0
                 valid_mpjpe = 0
                 global_step_val = sess.run(global_step) # get the global step value
@@ -147,8 +148,8 @@ with tf.Session(config=config) as sess:
                     else:
                         loss_val, mpjpe_val = sess.run([loss_valid, mpjpe_valid]) # get valid loss and mpjpe on 1 batch
                     
-                    valid_loss += loss_val / VALID_STEPS # add to the mean
-                    valid_mpjpe += mpjpe_val / VALID_STEPS # add to the mean
+                    valid_loss += (loss_val / VALID_STEPS) # add to the mean
+                    valid_mpjpe += (mpjpe_val / VALID_STEPS) # add to the mean
                 
                 summary = sess.run(valid_summary, {valid_loss_pl: valid_loss, valid_mpjpe_pl: valid_mpjpe})
                 writer.add_summary(summary, global_step_val)

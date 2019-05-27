@@ -47,7 +47,7 @@ def load_and_preprocess_image_and_poses(path, pose2d, pose3d):
     return image,pose2d,pose3d
 
 def create_dataloader_train(data_root, batch_size, valid_subject=None, valid_size=None, batches_to_prefetch=1000, data_to_load="pose3d", shuffle=True):
-    assert(not (valid_subject is not None and valid_size is not None)) # we can choose to either validate on a subject or on a  random validation set with some validation_size, not both
+    assert(not (valid_subject is not None and valid_size is not None)) # we can choose to either validate on a subject or on a random validation set with some validation_size, not both
     print("\nCreating Dataset...")
     phase = "train"
     all_image_names = open(os.path.join(data_root,"annot","%s_images.txt"%phase)).readlines() # read all lines ('\n' included)
@@ -137,6 +137,9 @@ def create_dataloader_train(data_root, batch_size, valid_subject=None, valid_siz
     if valid_subject is not None:
         to_return.append(valid_ds)
         to_return.append(len(valid_indices)) # also return size of validation data
+    elif valid_size is not None:
+        to_return.append(valid_ds)
+        to_return.append(valid_size) # also return size of validation data
     
     if data_to_load == "all_poses":
         to_return = to_return + [means_2d, std_2d, means_3d, std_3d] # return 2d and 3d means and std
