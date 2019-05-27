@@ -303,7 +303,7 @@ class LinearModel(object):
 
   def get_all_batches_new( self, fname, training=True ):
 
-    annotations_path = os.path.join('.',"train.h5")
+    annotations_path = os.path.join('.', "annot", "train.h5")
     annotations = h5py.File(annotations_path, 'r')
 
     encoder_inputs = np.array(annotations["pose2d"])

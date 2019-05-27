@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from six.moves import xrange  # pylint: disable=redefined-builtin
 import tensorflow as tf
-import procrustes
+# import procrustes
 
 # import viz
 # import cameras
@@ -43,7 +43,7 @@ tf.app.flags.DEFINE_integer("num_layers", 2, "Number of layers in the model.")
 tf.app.flags.DEFINE_boolean("residual", False, "Whether to add a residual connection every 2 layers")
 
 # Evaluation
-tf.app.flags.DEFINE_boolean("procrustes", False, "Apply procrustes analysis at test time")
+# tf.app.flags.DEFINE_boolean("procrustes", False, "Apply procrustes analysis at test time")
 tf.app.flags.DEFINE_boolean("evaluateActionWise",False, "The dataset to use either h36m or heva")
 
 # Directories
@@ -63,7 +63,7 @@ FLAGS = tf.app.flags.FLAGS
 
 train_dir = FLAGS.train_dir
 
-print( train_dir )
+print("Train dir: {}\n".format(train_dir))
 summaries_dir = os.path.join( train_dir, "log" ) # Directory for TB summaries
 
 # To avoid race conditions: https://github.com/tensorflow/tensorflow/issues/7448
