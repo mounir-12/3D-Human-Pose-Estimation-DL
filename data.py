@@ -46,7 +46,8 @@ def load_and_preprocess_image_and_poses(path, pose2d, pose3d):
     pose3d = tf.cast(pose3d,tf.float32)
     return image,pose2d,pose3d
 
-def create_dataloader_train(data_root, batch_size, valid_subject=None, batches_to_prefetch=1000, data_to_load="pose3d", shuffle=True):
+def create_dataloader_train(data_root, batch_size, valid_subject=None, valid_size=None, batches_to_prefetch=1000, data_to_load="pose3d", shuffle=True):
+    assert(not (valid_subject is not None and valid_size is not None)) # we can choose to either validate on a subject or on a  random validation set with some validation_size, not both
     print("\nCreating Dataset...")
     phase = "train"
     all_image_names = open(os.path.join(data_root,"annot","%s_images.txt"%phase)).readlines() # read all lines ('\n' included)
@@ -68,6 +69,8 @@ def create_dataloader_train(data_root, batch_size, valid_subject=None, batches_t
         valid_image_paths = all_image_paths[min_valid_index:max_valid_index+1]
         valid_pose2d = annotations["pose2d"][min_valid_index:max_valid_index+1]
         valid_pose3d = annotations["pose3d"][min_valid_index:max_valid_index+1]
+    elif valid_size is not None:
+        print("Validation set size: ", valid_size)
     else:
         print("No validation set created")
     
@@ -110,6 +113,10 @@ def create_dataloader_train(data_root, batch_size, valid_subject=None, batches_t
     if valid_subject is not None:
         valid_ds = valid_ds.map(processing_func)
 
+    if valid_size is not None: # if we chose to pick a random validation set with a mix of subjects, then we do the train/validation split here
+        valid_ds = train_ds.take(valid_size)
+        train_ds = train_ds.skip(valid_size)
+    
     print("Batching Data...")
     train_ds = train_ds.repeat() # repeat dataset indefinitely
     train_ds = train_ds.batch(batch_size, drop_remainder=True) # batch data
@@ -117,7 +124,7 @@ def create_dataloader_train(data_root, batch_size, valid_subject=None, batches_t
     
     train_ds = train_ds.make_one_shot_iterator().get_next() # convert to iterator
     
-    if valid_subject is not None: # batch and prefetech validation data
+    if valid_subject is not None or valid_size is not None: # batch and prefetech validation data
         valid_ds = valid_ds.repeat() # repeat dataset indefinitely
         valid_ds = valid_ds.batch(batch_size, drop_remainder=True) # batch data
         valid_ds = valid_ds.prefetch(batches_to_prefetch)
