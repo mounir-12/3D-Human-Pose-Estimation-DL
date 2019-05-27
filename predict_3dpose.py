@@ -149,13 +149,11 @@ def train():
     current_epoch = 0
     log_every_n_batches = 100
 
-    fname = 'train.h5'
-
     for _ in xrange( FLAGS.epochs ):
       current_epoch = current_epoch + 1
 
       # === Load training batches for one epoch ===
-      encoder_inputs, decoder_outputs = model.get_all_batches_new( fname, training=True )
+      encoder_inputs, decoder_outputs = model.get_all_batches_new(training=True )
       nbatches = len( encoder_inputs )
       print("There are {0} train batches".format( nbatches ))
       start_time, loss = time.time(), 0.

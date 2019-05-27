@@ -156,18 +156,18 @@ class LinearModel(object):
     annotations_path = os.path.join('.', "annot", "train.h5")
     annotations = h5py.File(annotations_path, 'r')
 
-    encoder_inputs = np.array(annotations["pose2d"])
-    decoder_outputs = np.array(annotations["pose3d"])
+    gt_inputs = np.array(annotations["pose2d"])
+    gt_outputs = np.array(annotations["pose3d"])
 
-    enc_shape = encoder_inputs.shape
-    dec_shape = decoder_outputs.shape
+    gt_inputs_shape = gt_inputs.shape
+    gt_outputs_shape = gt_outputs.shape
 
-    self.encoder_inputs = encoder_inputs.reshape((enc_shape[0], enc_shape[1]*enc_shape[2]))
-    self.decoder_outputs = decoder_outputs.reshape((dec_shape[0], dec_shape[1]*dec_shape[2]))
+    self.gt_inputs = gt_inputs.reshape((gt_inputs_shape[0], gt_inputs_shape[1]*gt_inputs_shape[2]))
+    self.gt_outputs = gt_outputs.reshape((gt_outputs_shape[0], gt_outputs_shape[1]*gt_outputs_shape[2]))
 
-    self.normalizer = Normalizer().fit(self.encoder_inputs)
+#    self.normalizer = Normalizer().fit(self.encoder_inputs)
 
-    self.encoder_inputs = self.normalizer.transform(self.encoder_inputs)
+#    self.encoder_inputs = self.normalizer.transform(self.encoder_inputs)
 
 
 
@@ -248,7 +248,7 @@ class LinearModel(object):
 
     # Output feed: depends on whether we do a backward step or not.
     if isTraining:
-      output_feed = [self.updates,       # Update Op that does SGD
+      output_feed = [self.updates,       # Update Op that does SGD ---> train_op
                      self.loss,
                      self.loss_summary,
                      self.learning_rate_summary,
@@ -265,62 +265,40 @@ class LinearModel(object):
       outputs = session.run(output_feed, input_feed)
       return outputs[0], outputs[1], outputs[2]  # No gradient norm
 
-  def get_all_batches_new( self, training=True ):
+  def get_all_batches_new(self, training=True ):
 
-    # annotations_path = os.path.join('.', "annot", "train.h5")
-    # annotations = h5py.File(annotations_path, 'r')
+    n = self.gt_inputs.shape[0]
 
-    # encoder_inputs = np.array(annotations["pose2d"])
-    # decoder_outputs = np.array(annotations["pose3d"])
-
-    # # encoder_inputs = encoder_inputs[:,1:,:]
-    # # decoder_outputs = decoder_outputs[:,1:,:]
-
-    # enc_shape = encoder_inputs.shape
-    # dec_shape = decoder_outputs.shape
-
-    # encoder_inputs = encoder_inputs.reshape((enc_shape[0], enc_shape[1]*enc_shape[2]))
-
-    # decoder_outputs = decoder_outputs.reshape((dec_shape[0], dec_shape[1]*dec_shape[2]))
-
-
-
-
-    # encoder_inputs  = np.loadtxt(fname_2d, skiprows = 1)
-    # encoder_inputs = encoder_inputs[:,1:]
-    # decoder_outputs = np.loadtxt(fname_3d, skiprows = 1)
-    # decoder_outputs = decoder_outputs[:,1:]
-
-    n = self.encoder_inputs.shape[0]
-
-    assert n==self.decoder_outputs.shape[0]
+    assert n==self.gt_outputs.shape[0]
 
     if training:
       # Randomly permute everything
       idx = np.random.permutation( n )
-      encoder_inputs  = self.encoder_inputs[idx, :]
-      decoder_outputs = self.decoder_outputs[idx, :]
+      gt_inputs  = self.gt_inputs[idx, :]
+      gt_outputs = self.gt_outputs[idx, :]
 
     # Make the number of examples a multiple of the batch size
     n_extra  = n % self.batch_size
     if n_extra > 0:  # Otherwise examples are already a multiple of batch size
-      encoder_inputs  = encoder_inputs[:-n_extra, :]
-      decoder_outputs = decoder_outputs[:-n_extra, :]
+      gt_inputs  = gt_inputs[:-n_extra, :]
+      gt_outputs = gt_outputs[:-n_extra, :]
 
     n_batches = n // self.batch_size
-    encoder_inputs  = np.split( encoder_inputs, n_batches )
-    decoder_outputs = np.split( decoder_outputs, n_batches )
+    gt_inputs  = np.split( gt_inputs, n_batches )
+    gt_outputs = np.split( gt_outputs, n_batches )
 
-    return encoder_inputs, decoder_outputs
+    return gt_inputs, gt_outputs
 
 
   def get_test_data(self, fname):
-    encoder_inputs  = np.loadtxt(fname_2d, skiprows = 1)
-    encoder_inputs = encoder_inputs[:,1:,:]
+    test_inputs  = np.loadtxt(fname_2d, skiprows = 1)
+    test_inputs = encoder_inputs[:,1:,:]
+    print(test_inputs.shape)
+    print("\n\n\n")
 
-    return  encoder_inputs
+    return  test_inputs
 
   def test_step(self, enc_in, sess):
-    input_feed = {self.encoder_inputs: enc_in,self.isTraining: False}
+    input_feed = {self.encoder_inputs: enc_in, self.isTraining: False}
     output_feed = self.outputs
     return sess.run(output_feed, input_feed)
