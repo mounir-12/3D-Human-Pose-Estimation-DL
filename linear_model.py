@@ -156,18 +156,18 @@ class LinearModel(object):
     annotations_path = os.path.join('.', "annot", "train.h5")
     annotations = h5py.File(annotations_path, 'r')
 
-    encoder_inputs = np.array(annotations["pose2d"])
-    decoder_outputs = np.array(annotations["pose3d"])
+    encoder_data = np.array(annotations["pose2d"])
+    decoder_data = np.array(annotations["pose3d"])
 
-    enc_shape = encoder_inputs.shape
-    dec_shape = decoder_outputs.shape
+    enc_shape = encoder_data.shape
+    dec_shape = decoder_data.shape
 
-    self.encoder_inputs = encoder_inputs.reshape((enc_shape[0], enc_shape[1]*enc_shape[2]))
-    self.decoder_outputs = decoder_outputs.reshape((dec_shape[0], dec_shape[1]*dec_shape[2]))
+    self.encoder_data = encoder_data.reshape((enc_shape[0], enc_shape[1]*enc_shape[2]))
+    self.decoder_data = decoder_data.reshape((dec_shape[0], dec_shape[1]*dec_shape[2]))
 
-    self.normalizer = Normalizer().fit(self.encoder_inputs)
+    self.normalizer = Normalizer().fit(self.encoder_data)
 
-    self.encoder_inputs = self.normalizer.transform(self.encoder_inputs)
+    self.encoder_data = self.normalizer.transform(self.encoder_data)
 
 
 
@@ -291,15 +291,15 @@ class LinearModel(object):
     # decoder_outputs = np.loadtxt(fname_3d, skiprows = 1)
     # decoder_outputs = decoder_outputs[:,1:]
 
-    n = self.encoder_inputs.shape[0]
+    n = self.encoder_data.shape[0]
 
-    assert n==self.decoder_outputs.shape[0]
+    assert n==self.decoder_data.shape[0]
 
     if training:
       # Randomly permute everything
       idx = np.random.permutation( n )
-      encoder_inputs  = self.encoder_inputs[idx, :]
-      decoder_outputs = self.decoder_outputs[idx, :]
+      encoder_inputs  = self.encoder_data[idx, :]
+      decoder_outputs = self.decoder_data[idx, :]
 
     # Make the number of examples a multiple of the batch size
     n_extra  = n % self.batch_size
