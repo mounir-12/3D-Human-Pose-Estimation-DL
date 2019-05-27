@@ -68,7 +68,7 @@ with tf.Session(config=config) as sess:
     
 #    sys.exit(0)
 
-    print("Building model...\n")
+    print("Building model, Z_RES: {}...\n".format(Z_RES))
 
     # define and build the model
     with tf.variable_scope("model", reuse=False):
