@@ -15,7 +15,7 @@ import data_utils
 # import cameras as cam
 import h5py
 
-from sklearn.preprocessing import Normalizer
+from sklearn.preprocessing import StandardScaler
 
 def kaiming(shape, dtype, partition_info=None):
   """Kaiming initialization as described in https://arxiv.org/pdf/1502.01852.pdf
@@ -165,9 +165,15 @@ class LinearModel(object):
     self.gt_inputs = gt_inputs.reshape((gt_inputs_shape[0], gt_inputs_shape[1]*gt_inputs_shape[2]))
     self.gt_outputs = gt_outputs.reshape((gt_outputs_shape[0], gt_outputs_shape[1]*gt_outputs_shape[2]))
 
-#    self.normalizer = Normalizer().fit(self.encoder_inputs)
+   self.input_normalizer = StandardScaler().fit(self.gt_inputs)
 
-#    self.encoder_inputs = self.normalizer.transform(self.encoder_inputs)
+   self.gt_inputs = self.input_normalizer.transform(self.gt_inputs)
+
+   self.output_normalizer = StandardScaler().fit(self.gt_outputs)
+
+   self.gt_outputs = self.output_normalizer.transform(self.gt_outputs)
+
+
 
 
 

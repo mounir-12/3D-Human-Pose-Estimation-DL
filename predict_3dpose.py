@@ -56,10 +56,6 @@ tf.app.flags.DEFINE_integer("load", 0, "Try to load a previous checkpoint.")
 # Misc
 tf.app.flags.DEFINE_boolean("use_fp16", False, "Train using fp16 instead of fp32.")
 
-# Predict
-tf.app.flags.DEFINE_boolean("predict_only", True, "Predict on train set")
-tf.app.flags.DEFINE_string("test_fname",   "./p2d_test.csv", "Test data file name")
-
 FLAGS = tf.app.flags.FLAGS
 
 train_dir = FLAGS.train_dir
@@ -200,34 +196,8 @@ def train():
 
       sys.stdout.flush()
 
-def test():
-
-  fname_test_out = 'simple_baseline_submission.csv'
-  device_count = {"GPU": 0} if FLAGS.use_cpu else {"GPU": 1}
-  with tf.Session(config=tf.ConfigProto(
-    device_count=device_count,
-    allow_soft_placement=True )) as sess:
-
-    # === Create the model ===
-    if FLAGS.predict_only:
-      print("Creating %d bi-layers of %d units." % (FLAGS.num_layers, FLAGS.linear_size))
-      model = create_model( sess, FLAGS.batch_size )
-      model.train_writer.add_graph( sess.graph )
-      print("Model created")
-
-    encoder_inputs = model.get_test_data( FLAGS.test_fname)
-    encoder_inputs = model.normalizer.transform(encoder_inputs)
-
-    decoder_outputs = model.test_step(encoder_inputs, sess)
-
-    utils.generate_submission_3d(decoder_outputs, fname_test_out)
-
 def main(_):
-  if FLAGS.predict_only:
-    test()
-  else:
     train()
-    test()
 
 if __name__ == "__main__":
   tf.app.run()
