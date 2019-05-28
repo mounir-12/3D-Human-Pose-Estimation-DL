@@ -135,11 +135,19 @@ with tf.Session(config=config) as sess:
     valid_summary = tf.summary.merge([tf.summary.scalar("valid_loss", valid_loss_pl), 
                                       tf.summary.scalar("valid_mpjpe", valid_mpjpe_pl)])
     
-    writer = tf.summary.FileWriter(CHECKPOINTS_PATH, sess.graph)
+    print("Initializing summaries writer ...")
+    sys.stdout.flush()
+    
+    if CONTINUE_TRAINING: # if continuing training, no need to write the graph again to the events file
+        writer = tf.summary.FileWriter(CHECKPOINTS_PATH)
+    else: # otherwise, write graph
+        writer = tf.summary.FileWriter(CHECKPOINTS_PATH, sess.graph)
     
 #    sys.exit(0)
     
     # define model saver
+    print("Initializing model saver ...")
+    sys.stdout.flush()
     saver = tf.train.Saver(tf.global_variables())
     
     if CONTINUE_TRAINING: # restore variables from saved model
