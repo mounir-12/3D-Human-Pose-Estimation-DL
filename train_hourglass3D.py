@@ -12,7 +12,7 @@ current/future students or other parties.
 
 import tensorflow as tf
 import numpy as np
-import os, sys, gc
+import os, sys, gc, glob
 from tqdm import trange
 import utils
 from data import create_dataloader_train, create_dataloader_test
@@ -22,6 +22,7 @@ from PIL import Image
 
 NUM_SAMPLES= 312188
 NUM_SAMPLES_TEST = 10987
+CONTINUE_TRAINING = True
 
 # Train parameters
 NUM_EPOCHS = 2
@@ -46,13 +47,28 @@ BATCHES_TO_PREFETCH=20
 
 # Paths
 CURR_DIR = "."
-LOG_PATH = os.path.join(CURR_DIR, "log_HG3D", utils.timestamp())
-CHECKPOINTS_PATH = os.path.join(LOG_PATH, "checkpoints")
+if CONTINUE_TRAINING: # continue training from last training loop
+    list_of_files = glob.glob(os.path.join(CURR_DIR, "log_HG3D", "*"))
+    LOG_PATH = max(list_of_files, key=os.path.getctime) # latest created dir for latest experiment will be our log path
+else:
+    LOG_PATH = os.path.join(CURR_DIR, "log_HG3D", utils.timestamp())
+
+CHECKPOINTS_PATH = os.path.join(LOG_PATH, "checkpoints") # path to restore from and/or to save the checkpoints to
 CLUSTER_PATH = "/cluster/project/infk/hilliges/lectures/mp19/project2/"
 if os.path.exists(CLUSTER_PATH):
     DATA_PATH = CLUSTER_PATH
 else:
     DATA_PATH = CURR_DIR
+    
+# printing all above parameters
+print("\n")
+print("Run infos:")
+print("    NUM_EPOCHS: {}".format(NUM_EPOCHS))
+print("    BATCH_SIZE: {}".format(BATCH_SIZE))
+print("    LEARNING_RATE: {}".format(LEARNING_RATE))
+print("    LOG_DIR: {}".format(LOG_PATH))
+print("    CONTINUE_TRAINING: {}".format(CONTINUE_TRAINING))
+print("\n")
 
 config = tf.ConfigProto()
 config.gpu_options.allow_growth = True
@@ -68,7 +84,7 @@ with tf.Session(config=config) as sess:
     
 #    sys.exit(0)
 
-    print("Building model, Z_RES: {}...\n".format(Z_RES))
+    print("Building model, Z_RES: {}, Sigma: {} ...\n".format(Z_RES, SIGMA))
 
     # define and build the model
     with tf.variable_scope("model", reuse=False):
@@ -120,6 +136,14 @@ with tf.Session(config=config) as sess:
 
     # define model saver
     saver = tf.train.Saver(tf.global_variables())
+    
+    if CONTINUE_TRAINING:
+        saver.restore(sess,tf.train.latest_checkpoint(CHECKPOINTS_PATH))
+        print("Model restored from ", CHECKPOINTS_PATH)
+        print("Continuing training for {} epochs ... ".format(NUM_EPOCHS))
+        print("Global_step: {}".format(sess.run(global_step)))
+        
+#    sys.exit(0)
 
     # training loop
     print("Training start ...\n")
