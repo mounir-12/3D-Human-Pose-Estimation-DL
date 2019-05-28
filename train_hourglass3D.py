@@ -136,20 +136,30 @@ with tf.Session(config=config) as sess:
                                       tf.summary.scalar("valid_mpjpe", valid_mpjpe_pl)])
     
     writer = tf.summary.FileWriter(CHECKPOINTS_PATH, sess.graph)
-
-    # initialize
-    tf.global_variables_initializer().run()
-
+    
+#    sys.exit(0)
+    
     # define model saver
     saver = tf.train.Saver(tf.global_variables())
     
-    if CONTINUE_TRAINING:
-        saver.restore(sess,tf.train.latest_checkpoint(CHECKPOINTS_PATH))
+    if CONTINUE_TRAINING: # restore variables from saved model
+        print("\nRestoring Model ...")
+        saver.restore(sess,tf.train.latest_checkpoint(CHECKPOINTS_PATH)) # restore model from last checkpoint
+        global_step_val = sess.run(global_step)
+        for filename in glob.glob(os.path.join(CHECKPOINTS_PATH, "model*")): # remove all previously saved checkpoints (for Leonhard since limited disk space given)
+            os.remove(filename)
+        saver.save(sess,os.path.join(CHECKPOINTS_PATH,"model"),global_step=global_step_val) # save the restored model (i,e keep the last checkpoint in this new run)
         print("Model restored from ", CHECKPOINTS_PATH)
         print("Continuing training for {} epochs ... ".format(NUM_EPOCHS))
-        print("Global_step: {}".format(sess.run(global_step)))
+        print("Global_step: {}\n".format(global_step_val))
         sys.stdout.flush()
-        
+    else: # initialize using initializers
+        print("\nInitializing Variables")
+        sys.stdout.flush()
+        tf.global_variables_initializer().run()
+
+    sys.stdout.flush()
+    
 #    sys.exit(0)
 
     # training loop
