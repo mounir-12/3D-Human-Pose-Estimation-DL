@@ -69,6 +69,7 @@ print("    LEARNING_RATE: {}".format(LEARNING_RATE))
 print("    LOG_DIR: {}".format(LOG_PATH))
 print("    CONTINUE_TRAINING: {}".format(CONTINUE_TRAINING))
 print("\n")
+sys.stdout.flush()
 
 config = tf.ConfigProto()
 config.gpu_options.allow_growth = True
@@ -85,6 +86,7 @@ with tf.Session(config=config) as sess:
 #    sys.exit(0)
 
     print("Building model, Z_RES: {}, Sigma: {} ...\n".format(Z_RES, SIGMA))
+    sys.stdout.flush()
 
     # define and build the model
     with tf.variable_scope("model", reuse=False):
@@ -105,22 +107,26 @@ with tf.Session(config=config) as sess:
     
     # compute loss
     print("Loss...")
+    sys.stdout.flush()
     loss_train = model_train.compute_loss(p3d_gt_train, all_heatmaps_pred_train)
     loss_valid = model_valid.compute_loss(p3d_gt_valid, all_heatmaps_pred_valid)
 #    sys.exit(0)
 
     # define trainer
     print("Train op...")
+    sys.stdout.flush()
     train_op, global_step = model_train.get_train_op(loss_train, learning_rate=LEARNING_RATE)
 #    sys.exit(0)
 
     print("MPJPE ...")
+    sys.stdout.flush()
     mpjpe_train = utils.compute_MPJPE(p3d_pred_train,p3d_gt_train)
     mpjpe_valid = utils.compute_MPJPE(p3d_pred_valid,p3d_gt_valid)
     
     # visualization related
 
     print("Summaries ...")
+    sys.stdout.flush()
     train_summary = tf.summary.merge([tf.summary.scalar("train_loss", loss_train),
                                      tf.summary.scalar("train_mpjpe", mpjpe_train)])
     
@@ -142,11 +148,13 @@ with tf.Session(config=config) as sess:
         print("Model restored from ", CHECKPOINTS_PATH)
         print("Continuing training for {} epochs ... ".format(NUM_EPOCHS))
         print("Global_step: {}".format(sess.run(global_step)))
+        sys.stdout.flush()
         
 #    sys.exit(0)
 
     # training loop
     print("Training start ...\n")
+    sys.stdout.flush()
     with trange(int(NUM_EPOCHS * (NUM_SAMPLES // BATCH_SIZE))) as t:
         for i in t:
 
@@ -195,10 +203,12 @@ with tf.Session(config=config) as sess:
             # we finished an epoch, we predict on test set
             if TEST_EVERY_EPOCH and (i+1) % (NUM_SAMPLES // BATCH_SIZE) == 0:
                 print("End of epoch, saving model ...")
+                sys.stdout.flush()
                 global_step_val = sess.run(global_step) # get the global step value
                 saver.save(sess,os.path.join(CHECKPOINTS_PATH,"model"),global_step=global_step_val)
                 gc.collect() # free-up memory once model saved
                 print("Predicting on test set...")
+                sys.stdout.flush()
                 predictions = None
                 with trange(NUM_SAMPLES_TEST) as t_test: # generate predictions for all images
                     for j in t_test:
@@ -211,6 +221,7 @@ with tf.Session(config=config) as sess:
 
                 predictions = predictions.reshape([-1, 51])
                 print("\nPredictions shape:", predictions.shape)
+                sys.stdout.flush()
                 
                 submissions_dir = os.path.join(LOG_PATH, "submissions")
                 if not os.path.exists(submissions_dir):
