@@ -37,8 +37,8 @@ VALID_SAMPLES = 2188
 TEST_EVERY_EPOCH = True
 
 # Model parameters
-Z_RES=[1, 128]
-OUTPUT_SHAPE=[128,128,128]
+Z_RES=[1, 2, 4, 64]
+OUTPUT_SHAPE=[64,64,64]
 SIGMA=2
 
 # Data parameters
