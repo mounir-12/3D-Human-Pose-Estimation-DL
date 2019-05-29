@@ -22,7 +22,7 @@ from PIL import Image
 
 NUM_SAMPLES= 312188
 NUM_SAMPLES_TEST = 10987
-CONTINUE_TRAINING = True
+CONTINUE_TRAINING = False
 
 # Train parameters
 NUM_EPOCHS = 2
@@ -37,7 +37,8 @@ VALID_SAMPLES = 2188
 TEST_EVERY_EPOCH = True
 
 # Model parameters
-Z_RES=[1, 2, 4, 64]
+Z_RES=[1, 128]
+OUTPUT_SHAPE=[128,128,128]
 SIGMA=2
 
 # Data parameters
@@ -90,17 +91,19 @@ with tf.Session(config=config) as sess:
 
     # define and build the model
     with tf.variable_scope("model", reuse=False):
-        model_train = C2FStackedHourglass(z_res=Z_RES, sigma=SIGMA)
+        model_train = C2FStackedHourglass(output_shape=OUTPUT_SHAPE, z_res=Z_RES, sigma=SIGMA)
         all_heatmaps_pred_train, p3d_pred_train = model_train(im_train, True)
-        
+
+#    sys.exit(0)
+
     with tf.variable_scope("model", reuse=True):
-        model_valid = C2FStackedHourglass(z_res=Z_RES, sigma=SIGMA)
+        model_valid = C2FStackedHourglass(output_shape=OUTPUT_SHAPE, z_res=Z_RES, sigma=SIGMA)
         all_heatmaps_pred_valid, p3d_pred_valid = model_valid(im_valid, False)
     
     # test data
     im_test = create_dataloader_test(data_root=DATA_PATH) # load test data with batch_size=1
     with tf.variable_scope("model", reuse=True):
-        model_test = C2FStackedHourglass(z_res=Z_RES, sigma=SIGMA)
+        model_test = C2FStackedHourglass(output_shape=OUTPUT_SHAPE, z_res=Z_RES, sigma=SIGMA)
         all_heatmaps_pred_test, p3d_pred_test = model_test(im_test, False)
     
 #    sys.exit(0)
