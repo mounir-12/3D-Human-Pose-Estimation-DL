@@ -165,13 +165,13 @@ class LinearModel(object):
     self.gt_inputs = gt_inputs.reshape((gt_inputs_shape[0], gt_inputs_shape[1]*gt_inputs_shape[2]))
     self.gt_outputs = gt_outputs.reshape((gt_outputs_shape[0], gt_outputs_shape[1]*gt_outputs_shape[2]))
 
-   self.input_normalizer = StandardScaler().fit(self.gt_inputs)
+    self.input_normalizer = StandardScaler().fit(self.gt_inputs)
 
-   self.gt_inputs = self.input_normalizer.transform(self.gt_inputs)
+    self.gt_inputs = self.input_normalizer.transform(self.gt_inputs)
 
-   self.output_normalizer = StandardScaler().fit(self.gt_outputs)
+    self.output_normalizer = StandardScaler().fit(self.gt_outputs)
 
-   self.gt_outputs = self.output_normalizer.transform(self.gt_outputs)
+    self.gt_outputs = self.output_normalizer.transform(self.gt_outputs)
 
 
 
@@ -300,14 +300,14 @@ class LinearModel(object):
 
   def get_test_data(self, fname):
     print(fname)
-    test_inputs  = np.loadtxt(fname, skiprows = 1)
-    test_inputs = encoder_inputs[:,1:,:]
+    test_inputs  = np.loadtxt(fname, skiprows = 1, delimiter = ',')
+    test_inputs = test_inputs[:,1:]
     print(test_inputs.shape)
     print("\n\n\n")
 
     return  test_inputs
 
   def test_step(self, enc_in, sess):
-    input_feed = {self.encoder_inputs: enc_in, self.isTraining: False}
+    input_feed = {self.encoder_inputs: enc_in, self.isTraining: False, self.dropout_keep_prob: 1}
     output_feed = self.outputs
     return sess.run(output_feed, input_feed)

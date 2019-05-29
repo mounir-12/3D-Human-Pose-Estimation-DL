@@ -18,7 +18,7 @@ import tensorflow as tf
 import data_utils
 import linear_model
 import utils
-
+tf.app.flags.DEFINE_float("learning_rate", 1e-3, "Learning rate")
 tf.app.flags.DEFINE_integer("batch_size", 64, "Batch size to use during training")
 tf.app.flags.DEFINE_boolean("predict_14", False, "predict 14 joints")
 tf.app.flags.DEFINE_integer("linear_size", 1024, "Size of each model layer.")
@@ -27,24 +27,28 @@ tf.app.flags.DEFINE_boolean("residual", True, "Whether to add a residual connect
 tf.app.flags.DEFINE_boolean("max_norm", True, "Apply maxnorm constraint to the weights")
 tf.app.flags.DEFINE_boolean("batch_norm", True, "Use batch_normalization")
 tf.app.flags.DEFINE_float("dropout", 0.5, "Dropout keep probability. 1 means no dropout")
-tf.app.flags.DEFINE_string("train_dir", "experiments", "Training directory.")
+tf.app.flags.DEFINE_string("train_dir", "./experiments", "Training directory.")
 tf.app.flags.DEFINE_boolean("use_cpu", False, "Whether to use the CPU")
 # tf.app.flags.DEFINE_integer("load", 0, "Try to load a previous checkpoint.")
 tf.app.flags.DEFINE_string("test_fname",   "./p2d_test.csv", "Test data file name")
+tf.app.flags.DEFINE_boolean("use_fp16", False, "Train using fp16 instead of fp32.")
+
+FLAGS = tf.app.flags.FLAGS
 
 train_dir = FLAGS.train_dir
 
-checkpoint_path = os.path.join(train_dir, "checkpoint")
+# checkpoint_path = os.path.join(train_dir, "checkpoint")
 
-dictionary = {}
-with open(checkpoint_path) as f:
-  for line in f:
-    key, value = line.strip().split(': ')
-    dictionary[key] = value[1:-1]
+# if os.path.isfile(checkpoint_path):
+#   dictionary = {}
+#   with open(checkpoint_path) as f:
+#     for line in f:
+#       key, value = line.strip().split(': ')
+#       dictionary[key] = value[1:-1]
 
-latest_ckpt = dictionary['model_checkpoint_path']
-
-print("Train dir: {}\n".format(train_dir))
+#   latest_ckpt = dictionary['model_checkpoint_path']
+# else:
+#   raise ValueError("{0} does not seem to exist".format( checkpoint_path ) )
 
 summaries_dir = os.path.join( train_dir, "log" )
 
@@ -76,12 +80,13 @@ def create_model( session, batch_size ):
       FLAGS.predict_14,
       dtype=tf.float16 if FLAGS.use_fp16 else tf.float32)
 
-  if os.path.isfile(os.path.join(train_dir,latest_ckpt)):
-    print("Loading model from {0}".format( latest_ckpt ))
-    model.saver.restore( session, latest_ckpt)
+  ckpt = tf.train.get_checkpoint_state( train_dir, latest_filename="checkpoint")
+
+  if ckpt and ckpt.model_checkpoint_path:
+    model.saver.restore( session, ckpt.model_checkpoint_path)
   else:
     print("Could not find checkpoint. Aborting.")
-    raise( ValueError, "{0} does not seem to exist".format( latest_ckpt ) )
+    raise ValueError("Checkpoint {0} does not seem to exist".format( ckpt.model_checkpoint_path ) )
 
   return model
 
@@ -94,17 +99,14 @@ def test():
     device_count=device_count,
     allow_soft_placement=True )) as sess:
 
-    # === Create the model ===
-    if FLAGS.predict_only:
-      print("Creating %d bi-layers of %d units." % (FLAGS.num_layers, FLAGS.linear_size))
-      model = create_model( sess, FLAGS.batch_size )
-      model.train_writer.add_graph( sess.graph )
-      print("Model created")
+    model = create_model( sess, FLAGS.batch_size )
 
     encoder_inputs = model.get_test_data( FLAGS.test_fname)
-    encoder_inputs = model.normalizer.transform(encoder_inputs)
+    encoder_inputs = model.input_normalizer.transform(encoder_inputs)
 
     decoder_outputs = model.test_step(encoder_inputs, sess)
+
+    decoder_outputs = model.output_normalizer.inverse_transform(decoder_outputs)
 
     utils.generate_submission_3d(decoder_outputs, fname_test_out)
 
