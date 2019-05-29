@@ -205,7 +205,7 @@ class C2FStackedHourglass: # Coarse to Fine Stacked Hourglass
         with tf.name_scope("loss"):
             total_loss = 0
             for i,heatmaps_pred in enumerate(all_heatmaps_pred):
-                loss = tf.losses.mean_squared_error(outputs_gt[i], heatmaps_pred)
+                loss = tf.losses.mean_squared_error(outputs_gt[i], heatmaps_pred, reduction=tf.losses.Reduction.SUM)
                 total_loss += loss
             self.loss = total_loss
         
