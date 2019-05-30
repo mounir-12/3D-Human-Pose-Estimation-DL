@@ -38,8 +38,7 @@ class C2FStackedHourglass: # Coarse to Fine Stacked Hourglass
             conv1 = conv_layer(inp, 64, (7, 7), (2, 2), (3, 3)) # image size goes from 256*256 to 128*128, 64 channels
             relu1 = relu_layer(batch_norm_layer(conv1, training)) # apply batch norm then relu
             res1 = residual_hg(relu1, 128, training) # produce 128 channels from 64 channels
-            # max_pool1 = max_pool_layer(res1, (2, 2), (2, 2)) # 2x2 pooling with stride 2x2 => Down-sampling: we half the image height and width to become 64*64
-            max_pool1 = linear_layer(res1, 128, training) # apply linear layer
+            max_pool1 = max_pool_layer(res1, (2, 2), (2, 2)) # 2x2 pooling with stride 2x2 => Down-sampling: we half the image height and width to become 64*64
             
             res2 = residual_hg(max_pool1, 128, training)
             res3 = residual_hg(res2, 128, training)
@@ -206,7 +205,7 @@ class C2FStackedHourglass: # Coarse to Fine Stacked Hourglass
         with tf.name_scope("loss"):
             total_loss = 0
             for i,heatmaps_pred in enumerate(all_heatmaps_pred):
-                loss = tf.losses.mean_squared_error(outputs_gt[i], heatmaps_pred)
+                loss = tf.losses.mean_squared_error(outputs_gt[i], heatmaps_pred, reduction=tf.losses.Reduction.SUM)
                 total_loss += loss
             self.loss = total_loss
         
