@@ -158,6 +158,20 @@ def compute_MPJPE(p3d_out,p3d_gt,p3d_std=None):
     mpjpe = tf.reduce_mean(tf.sqrt(mse))
 
     return mpjpe
+    
+def compute_MPJPE_2D(p2d_out,p2d_gt,p2d_std=None):
+
+    p2d_out_17x2 = tf.reshape(p2d_out, [-1, 17, 2])
+    p2d_gt_17x2  = tf.reshape(p2d_gt, [-1, 17, 2])
+    
+    mse = (p2d_out_17x2 - p2d_gt_17x2)
+    if p2d_std is not None:
+        mse = mse * p2d_std
+    mse = mse ** 2
+    mse = tf.reduce_sum(mse, axis=2)
+    mpjpe = tf.reduce_mean(tf.sqrt(mse))
+
+    return mpjpe
 
 def normalize_pose_3d(p3d,p3d_mean, p3d_std):
     # p3d of dimension [batch_size, nb_joints, nb_coordinates]

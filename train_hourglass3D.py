@@ -168,8 +168,6 @@ with tf.Session(config=config) as sess:
         print("\nInitializing Variables")
         sys.stdout.flush()
         tf.global_variables_initializer().run()
-
-    sys.stdout.flush()
     
 #    sys.exit(0)
 

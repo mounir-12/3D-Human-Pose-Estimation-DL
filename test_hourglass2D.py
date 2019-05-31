@@ -21,6 +21,8 @@ import math
 from hourglass2D_model import StackedHourglass
 from PIL import Image
 
+NUM_SAMPLES = 10987
+
 # Model parameters
 NB_STACKS=4
 SIGMA=1
@@ -30,8 +32,8 @@ BATCH_SIZE = 1 # predict one by one, allows to use drop_remainder=true which giv
 
 # Path
 list_of_files = glob.glob('./log/*')
-latest_dir = max(list_of_files, key=os.path.getctime) # latest created dir for latest experiment
-RESTORE_PATH  =os.path.join(latest_dir, "checkpoints") # we restore the lastest saved model from the latest experiment
+LOG_PATH = max(list_of_files, key=os.path.getctime) # latest created dir for latest experiment
+CHECKPOINTS_PATH  =os.path.join(LOG_PATH, "checkpoints") # we restore the lastest saved model from the latest experiment
 CLUSTER_PATH = "/cluster/project/infk/hilliges/lectures/mp19/project2/"
 LOCAL_PATH = "."
 if os.path.exists(CLUSTER_PATH):
@@ -41,9 +43,8 @@ else:
 
 with tf.Session() as sess:
     # load images
-    im = create_dataloader_test(data_root=DATA_PATH, batch_size=BATCH_SIZE)
+    im = create_dataloader_test(data_root=DATA_PATH)
 
-    print("\n", im)
     # define model
     model = StackedHourglass(nb_stacks=NB_STACKS, sigma=SIGMA)
     
@@ -52,10 +53,10 @@ with tf.Session() as sess:
 
     # restore weights
     saver = tf.train.Saver()
-    saver.restore(sess,tf.train.latest_checkpoint(RESTORE_PATH))
+    saver.restore(sess,tf.train.latest_checkpoint(CHECKPOINTS_PATH))
 
     predictions = None
-    with trange(math.ceil(10987/BATCH_SIZE)) as t: # generate predictions for all images
+    with trange(math.ceil(NUM_SAMPLES)) as t: # generate predictions for all images
         for i in t:
             image, p2d_out_value = sess.run([im, p2d_pred])
             
@@ -70,7 +71,13 @@ with tf.Session() as sess:
                 predictions = np.concatenate([predictions,p2d_out_value],axis=0)
 
     predictions = predictions.reshape([-1, 34])
-    utils.save_2d_pred(predictions, "p2d_test.csv")
+    print("\nPredictions shape:", predictions.shape)
+    sys.stdout.flush()
+                
+    predictions_dir = os.path.join(LOG_PATH, "predictions")
+    if not os.path.exists(predictions_dir):
+        os.makedirs(predictions_dir)
+    utils.save_2d_pred(predictions, os.path.join(predictions_dir, "p2d_test.csv"))
 
 
 
