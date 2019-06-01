@@ -14,11 +14,17 @@ import tensorflow as tf
 import h5py
 import os
 import numpy as np
+import cv2
 
 # fix random seeds in this file since used by all training files to load data
 tf.random.set_random_seed(5)
 np.random.seed(5)
 print("\nFixed random seeds\n")
+
+max_rotation = np.pi/180 * 5
+max_translation = 20
+max_scaling = 1.2
+p_aug = 0.4
 
 # ---------------------------------------- Basic Data Loading Function -------------------------------------------------------
 
@@ -229,3 +235,187 @@ def create_dataloader_test_resnet50(data_root, batch_size):
     dataloader = iterator.get_next()
 
     return dataloader
+
+
+# -------------------------------------------- Data Augmentation + 2d_hourglass specific functions -------------------------------------------------
+
+def augment_data_3d(imgs, poses, max_rotation, max_translation, max_scaling):
+    n = imgs.shape[0]
+
+    rows,cols = imgs.shape[1], imgs.shape[2]
+
+    for  i in range(n):
+        angle = np.random.uniform(-max_rotation, max_rotation)
+        t_x = np.random.uniform(-max_translation, max_translation)
+        t_y = np.random.uniform(-max_translation, max_translation)
+        scale = np.random.uniform(1, max_scaling)
+
+        M = np.array([[1,0,t_x],[0,1,t_y]])
+
+        imgs[i] = cv2.warpAffine(imgs[i], M, (rows, cols))
+
+        M = cv2.getRotationMatrix2D((cols/2,rows/2),angle,scale)
+
+        imgs[i] = cv2.warpAffine(imgs[i], M, (rows, cols))
+
+        angle = angle*np.pi/180
+
+        M = np.array([[np.cos(angle), np.sin(angle), 0], [-np.sin(angle), np.cos(angle), 0], [0, 0, 1]])
+
+        poses[i] = np.matmul(M, poses[i].T).T
+
+
+    return imgs, poses
+
+def preprocess_image_aug(image, angle, dt):
+    image = tf.image.decode_jpeg(image, channels=3)
+    image = tf.cast(image,tf.float32) / 128. - 1
+    image = tf.transpose(a=image, perm=[2, 0, 1]) # images are read in channels_last format, so convert to channels_first format
+    tf.contrib.image.rotate( image, angle, interpolation='BILINEAR')
+    tf.contrib.image.translate( image, dt, interpolation='BILINEAR')
+    return image
+
+def load_and_preprocess_image_and_pose_aug(path, pose):
+    image = tf.read_file(path)
+    pose = tf.cast(pose,tf.float32)
+    if np.random.uniform(0,1) < p_aug:
+        angle = np.random.uniform(-max_rotation, max_rotation)
+        dt = np.random.uniform(-max_translation, max_translation, 2)
+        image = preprocess_image_aug(image, angle, dt)
+        M = tf.constant([[np.cos(angle), -np.sin(angle), 0], [np.sin(angle), np.cos(angle), 0], [0, 0, 1]])
+        pose = tf.matmul(pose, M)
+    return image,pose
+
+def load_and_preprocess_image_and_poses_aug(path, pose2d, pose3d):
+    image = tf.read_file(path)
+    pose2d = tf.cast(pose2d,tf.float32)
+    pose3d = tf.cast(pose3d,tf.float32)
+    if np.random.uniform(0,1) < p_aug:
+        angle = np.random.uniform(-max_rotation, max_rotation)
+        dt = np.random.uniform(-max_translation, max_translation, 2)
+        image = preprocess_image_aug(image, angle, dt)
+        M = tf.constant([[np.cos(angle), -np.sin(angle), 0], [np.sin(angle), np.cos(angle), 0], [0, 0, 1]])
+        pose3d = tf.matmul(pose3d, M)
+        M = tf.constant([[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]])
+        pose2d = tf.matmul(pose2d, M)
+    return image,pose2d,pose3d
+
+def load_and_preprocess_image_and_pose2d_aug(path, pose2d):
+    image = tf.read_file(path)
+    pose = tf.cast(pose2d,tf.float32)
+    if np.random.uniform(0,1) < p_aug:
+        angle = np.random.uniform(-max_rotation, max_rotation)
+        dt = np.random.uniform(-max_translation, max_translation, 2)
+        image = preprocess_image_aug(image, angle, dt)
+        M = tf.constant([[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]])
+        pose = tf.matmul(pose, M)
+    return image,pose
+
+def load_and_preprocess_image_aug(path):
+    image = tf.read_file(path)
+    image = preprocess_image(image)
+    return image
+
+def create_dataloader_train_aug(data_root, batch_size, valid_subject=None, valid_size=None, batches_to_prefetch=1000, data_to_load="pose3d", shuffle=True):
+    assert(not (valid_subject is not None and valid_size is not None)) # we can choose to either validate on a subject or on a random validation set with some validation_size, not both
+    print("\nCreating Dataset...")
+    phase = "train"
+    all_image_names = open(os.path.join(data_root,"annot","%s_images.txt"%phase)).readlines() # read all lines ('\n' included)
+    all_image_paths = [os.path.join(data_root, "images", path[:-1]) for path in all_image_names] # construct paths removing '\n'
+
+    annotations_path = os.path.join(data_root,"annot","%s.h5"%phase)
+    annotations = h5py.File(annotations_path, 'r')
+
+    if valid_subject is not None:
+        valid_indices = set([i for i in range(len(all_image_names)) if all_image_names[i].split("_")[0] == valid_subject])
+        print("Validation subject: ", valid_subject)
+        print("Validation set size: ", len(valid_indices))
+        min_valid_index, max_valid_index = min(valid_indices), max(valid_indices)
+        # split dataset to train and validation
+        train_image_paths = all_image_paths[:min_valid_index] + all_image_paths[max_valid_index+1:]
+        train_pose2d = np.concatenate([annotations["pose2d"][:min_valid_index],annotations["pose2d"][max_valid_index+1:]])
+        train_pose3d = np.concatenate([annotations["pose3d"][:min_valid_index],annotations["pose3d"][max_valid_index+1:]])
+        
+        valid_image_paths = all_image_paths[min_valid_index:max_valid_index+1]
+        valid_pose2d = annotations["pose2d"][min_valid_index:max_valid_index+1]
+        valid_pose3d = annotations["pose3d"][min_valid_index:max_valid_index+1]
+    elif valid_size is not None:
+        print("Validation set size: ", valid_size)
+    else:
+        print("No validation set created")
+    
+    if data_to_load == "all_poses":
+        means_2d = np.mean(annotations["pose2d"], axis=0).flatten()
+        std_2d = np.std(annotations["pose2d"], axis=0).flatten()
+        means_3d = np.mean(annotations["pose3d"], axis=0).flatten()
+        std_3d = np.std(annotations["pose3d"], axis=0).flatten()
+        processing_func = load_and_preprocess_image_and_poses_aug # function to call in the map operation below
+        if valid_subject is not None: # create train and validation datasets
+            train_ds = tf.data.Dataset.from_tensor_slices((train_image_paths, train_pose2d, train_pose3d))
+            valid_ds = tf.data.Dataset.from_tensor_slices((valid_image_paths, valid_pose2d, valid_pose3d))
+        else: # create only train dataset
+            train_ds = tf.data.Dataset.from_tensor_slices((all_image_paths, annotations["pose2d"], annotations["pose3d"]))
+    else:
+        means = np.mean(annotations[data_to_load], axis=0).flatten()
+        std = np.std(annotations[data_to_load], axis=0).flatten()
+        if valid_subject is not None: # create train and validation datasets
+            if data_to_load == "pose2d":
+                train_pose, valid_pose = [train_pose2d, valid_pose2d]
+                processing_func = load_and_preprocess_image_and_pose2d_aug # function to call in the map operation below
+            else:
+                train_pose, valid_pose = [train_pose3d, valid_pose3d]
+                processing_func = load_and_preprocess_image_and_pose_aug # function to call in the map operation below
+            
+            train_ds = tf.data.Dataset.from_tensor_slices((train_image_paths, train_pose))
+            valid_ds = tf.data.Dataset.from_tensor_slices((valid_image_paths, valid_pose))
+        else: # create only train dataset
+            train_ds = tf.data.Dataset.from_tensor_slices((all_image_paths, annotations[data_to_load]))
+    
+    if shuffle:
+        print("Shuffling data...")
+        if valid_subject is not None: # shuffle both train and validation dataset
+            train_ds = train_ds.shuffle(buffer_size=len(all_image_paths) - len(valid_indices))
+            valid_ds = valid_ds.shuffle(buffer_size=len(valid_indices))
+        else: # shuffle only train dataset
+            train_ds = train_ds.shuffle(buffer_size=len(all_image_paths))
+
+    print("Mapping Data...")
+    train_ds = train_ds.map(processing_func)
+    if valid_subject is not None:
+        valid_ds = valid_ds.map(processing_func)
+
+    if valid_size is not None: # if we chose to pick a random validation set with a mix of subjects, then we do the train/validation split here
+        valid_ds = train_ds.take(valid_size)
+        train_ds = train_ds.skip(valid_size)
+    
+    print("Batching Data...")
+    train_ds = train_ds.repeat() # repeat dataset indefinitely
+    train_ds = train_ds.batch(batch_size, drop_remainder=True) # batch data
+    train_ds = train_ds.prefetch(batches_to_prefetch)
+    
+    train_ds = train_ds.make_one_shot_iterator().get_next() # convert to iterator
+    
+    if valid_subject is not None or valid_size is not None: # batch and prefetech validation data
+        valid_ds = valid_ds.repeat() # repeat dataset indefinitely
+        valid_ds = valid_ds.batch(batch_size, drop_remainder=True) # batch data
+        valid_ds = valid_ds.prefetch(batches_to_prefetch)
+        
+        valid_ds = valid_ds.make_one_shot_iterator().get_next() # convert to iterator
+    
+    # decide what to return
+    to_return = [train_ds] # list of objects to return
+    
+    if valid_subject is not None:
+        to_return.append(valid_ds)
+        to_return.append(len(valid_indices)) # also return size of validation data
+    elif valid_size is not None:
+        to_return.append(valid_ds)
+        to_return.append(valid_size) # also return size of validation data
+    
+    if data_to_load == "all_poses":
+        to_return = to_return + [means_2d, std_2d, means_3d, std_3d] # return 2d and 3d means and std
+    else:
+        to_return = to_return + [means, std] # return means and std of loaded poses
+    
+    print("Done ...\n")
+    return to_return
