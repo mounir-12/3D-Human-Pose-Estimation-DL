@@ -117,6 +117,23 @@ def test():
         print("saving at: {}".format(out_file))
         print("\n\n")
         utils.generate_submission_3d(decoder_outputs, out_file)
+    
+    print("Saving code ...")
+    submission_files = [
+        "data.py",
+        "data_utils.py",
+        "hourglass2D_model.py",
+        "linear_model.py",
+        "train_hourglass2D.py",
+        "train_simple_baseline.py",
+        "test_simple_baseline.py",
+        "layers.py",
+        "setup.py",
+        "utils.py",
+        "vis.py"
+    ]
+    utils.create_zip_code_files(os.path.join(submissions_dir, "code.zip"), submission_files)
+    print("Done.")
 
 
 def main(_):

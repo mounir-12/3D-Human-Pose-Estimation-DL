@@ -71,7 +71,7 @@ with tf.Session() as sess:
     utils.generate_submission_3d(predictions, "submission.csv.gz")
     submission_files = [
         "data.py",
-        "hourglass3D_model",
+        "hourglass3D_model.py",
         "test_hourglass3D.py",
         "train_hourglass3D.py",
         "layers.py",
