@@ -24,6 +24,7 @@ print("\nFixed random seeds\n")
 max_rotation = np.pi/180 * 5
 max_translation = 20
 max_scaling = 1.2
+p_aug = 0.4
 
 # ---------------------------------------- Basic Data Loading Function -------------------------------------------------------
 
@@ -276,22 +277,24 @@ def preprocess_image_aug(image, angle, dt):
 
 def load_and_preprocess_image_and_pose_aug(path, pose):
     image = tf.read_file(path)
-    angle = np.random.uniform(-max_rotation, max_rotation)
-    dt = np.random.uniform(-max_translation, max_translation, 2)
-    image = preprocess_image_aug(image, angle, dt)
     pose = tf.cast(pose,tf.float32)
-    M = tf.constant([[np.cos(angle), -np.sin(angle), 0], [np.sin(angle), np.cos(angle), 0], [0, 0, 1]])
-    pose = tf.matmul(pose, M)
+    if np.random.uniform(0,1) < p_aug:
+        angle = np.random.uniform(-max_rotation, max_rotation)
+        dt = np.random.uniform(-max_translation, max_translation, 2)
+        image = preprocess_image_aug(image, angle, dt)
+        M = tf.constant([[np.cos(angle), -np.sin(angle), 0], [np.sin(angle), np.cos(angle), 0], [0, 0, 1]])
+        pose = tf.matmul(pose, M)
     return image,pose
 
 def load_and_preprocess_image_and_pose2d_aug(path, pose2d):
     image = tf.read_file(path)
-    angle = np.random.uniform(-max_rotation, max_rotation)
-    dt = np.random.uniform(-max_translation, max_translation, 2)
-    image = preprocess_image_aug(image, angle, dt)
     pose = tf.cast(pose2d,tf.float32)
-    M = tf.constant([[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]])
-    pose = tf.matmul(pose, M)
+    if np.random.uniform(0,1) < p_aug:
+        angle = np.random.uniform(-max_rotation, max_rotation)
+        dt = np.random.uniform(-max_translation, max_translation, 2)
+        image = preprocess_image_aug(image, angle, dt)
+        M = tf.constant([[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]])
+        pose = tf.matmul(pose, M)
     return image,pose
 
 def load_and_preprocess_image_aug(path):
