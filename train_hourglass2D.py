@@ -25,9 +25,9 @@ NUM_SAMPLES_TEST = 10987
 CONTINUE_TRAINING = False
 
 # Train parameters
-NUM_EPOCHS = 2
+NUM_EPOCHS = 4
 BATCH_SIZE = 4
-LEARNING_RATE = 2.5*10**(-4)
+LEARNING_RATE = 0.001
 LOG_ITER_FREQ = 100
 VALID_ITER_FREQ = 500
 VALID_STEPS = 10 # number of validation batches to use to compute the mean validation loss and mpjpe
