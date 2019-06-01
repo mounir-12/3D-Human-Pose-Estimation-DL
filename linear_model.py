@@ -41,8 +41,8 @@ class LinearModel(object):
                batch_norm,
                max_norm,
                batch_size,
-               learning_rate,
-               summaries_dir,
+               learning_rate=0.001,
+               summaries_dir=None,
                predict_14=False,
                dtype=tf.float32):
     """Creates the linear + relu model
@@ -81,8 +81,9 @@ class LinearModel(object):
     self.dropout_keep_prob = tf.placeholder(tf.float32, name="dropout_keep_prob")
 
     # Summary writers for train and test runs
-    self.train_writer = tf.summary.FileWriter( os.path.join(summaries_dir, 'train' ))
-    self.test_writer  = tf.summary.FileWriter( os.path.join(summaries_dir, 'test' ))
+    if summaries_dir is not None:
+        self.train_writer = tf.summary.FileWriter(summaries_dir)
+        self.test_writer  = tf.summary.FileWriter(summaries_dir)
 
     self.linear_size   = linear_size
     self.batch_size    = batch_size
@@ -172,10 +173,6 @@ class LinearModel(object):
     self.output_normalizer = StandardScaler().fit(self.gt_outputs)
 
     self.gt_outputs = self.output_normalizer.transform(self.gt_outputs)
-
-
-
-
 
 
   def two_linear( self, xin, linear_size, residual, dropout_keep_prob, max_norm, batch_norm, dtype, idx ):
@@ -299,11 +296,10 @@ class LinearModel(object):
 
 
   def get_test_data(self, fname):
-    print(fname)
+    print("Test file: {}".format(fname))
     test_inputs  = np.loadtxt(fname, skiprows = 1, delimiter = ',')
     test_inputs = test_inputs[:,1:]
-    print(test_inputs.shape)
-    print("\n\n\n")
+    print("Test data shape: {}".format(test_inputs.shape))
 
     return  test_inputs
 

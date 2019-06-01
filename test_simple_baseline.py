@@ -3,7 +3,7 @@ from __future__ import division
 from __future__ import print_function
 
 import math
-import os
+import os, glob
 import random
 import sys
 import time
@@ -18,25 +18,27 @@ import tensorflow as tf
 import data_utils
 import linear_model
 import utils
-tf.app.flags.DEFINE_float("learning_rate", 1e-3, "Learning rate")
+
 tf.app.flags.DEFINE_integer("batch_size", 64, "Batch size to use during training")
-tf.app.flags.DEFINE_boolean("predict_14", False, "predict 14 joints")
+
+# Architecture
 tf.app.flags.DEFINE_integer("linear_size", 1024, "Size of each model layer.")
 tf.app.flags.DEFINE_integer("num_layers", 2, "Number of layers in the model.")
 tf.app.flags.DEFINE_boolean("residual", True, "Whether to add a residual connection every 2 layers")
 tf.app.flags.DEFINE_boolean("max_norm", True, "Apply maxnorm constraint to the weights")
 tf.app.flags.DEFINE_boolean("batch_norm", True, "Use batch_normalization")
 tf.app.flags.DEFINE_float("dropout", 0.5, "Dropout keep probability. 1 means no dropout")
-tf.app.flags.DEFINE_string("train_dir", "./experiments", "Training directory.")
-tf.app.flags.DEFINE_boolean("use_cpu", False, "Whether to use the CPU")
-# tf.app.flags.DEFINE_integer("load", 0, "Try to load a previous checkpoint.")
-tf.app.flags.DEFINE_string("test_fname",   "./p2d_test.csv", "Test data file name")
-tf.app.flags.DEFINE_boolean("use_fp16", False, "Train using fp16 instead of fp32.")
+
+# Directories
+list_of_files = glob.glob(os.path.join(".", "log_SB", "*"))
+tf.app.flags.DEFINE_string("train_dir", max(list_of_files, key=os.path.getctime), "Training directory.") # latest created dir for latest experiment
 
 FLAGS = tf.app.flags.FLAGS
 
 train_dir = FLAGS.train_dir
-
+print("\n")
+print(train_dir)
+print("\n")
 # checkpoint_path = os.path.join(train_dir, "checkpoint")
 
 # if os.path.isfile(checkpoint_path):
@@ -50,22 +52,17 @@ train_dir = FLAGS.train_dir
 # else:
 #   raise ValueError("{0} does not seem to exist".format( checkpoint_path ) )
 
-summaries_dir = os.path.join( train_dir, "log" )
-
-os.system('mkdir -p {}'.format(summaries_dir))
+summaries_dir = os.path.join( train_dir, "checkpoints" )
 
 def create_model( session, batch_size ):
   """
-  Create model and initialize it or load its parameters in a session
+  Loads model in a session
 
   Args
     session: tensorflow session
     batch_size: integer. Number of examples in each batch
   Returns
-    model: The created (or loaded) model
-  Raises
-    ValueError if asked to load a model, but the checkpoint specified by
-    FLAGS.load cannot be found.
+    model: The loaded model
   """
 
   model = linear_model.LinearModel(
@@ -75,40 +72,51 @@ def create_model( session, batch_size ):
       FLAGS.batch_norm,
       FLAGS.max_norm,
       batch_size,
-      FLAGS.learning_rate,
-      summaries_dir,
-      FLAGS.predict_14,
-      dtype=tf.float16 if FLAGS.use_fp16 else tf.float32)
+      dtype=tf.float32)
 
-  ckpt = tf.train.get_checkpoint_state( train_dir, latest_filename="checkpoint")
-
-  if ckpt and ckpt.model_checkpoint_path:
-    model.saver.restore( session, ckpt.model_checkpoint_path)
-  else:
-    print("Could not find checkpoint. Aborting.")
-    raise ValueError("Checkpoint {0} does not seem to exist".format( ckpt.model_checkpoint_path ) )
+  model.saver.restore(session,tf.train.latest_checkpoint(summaries_dir)) # restore model from last checkpoint
 
   return model
 
 
 def test():
 
-  fname_test_out = 'simple_baseline_submission.csv'
-  device_count = {"GPU": 0} if FLAGS.use_cpu else {"GPU": 1}
-  with tf.Session(config=tf.ConfigProto(
-    device_count=device_count,
-    allow_soft_placement=True )) as sess:
+  fname_test_out = os.path.join(train_dir, "submissions", 'simple_baseline_submission.csv')
+  config = tf.ConfigProto()
+  config.gpu_options.allow_growth = True
+  config.gpu_options.visible_device_list = "0"
+  with tf.Session(config=config) as sess:
 
     model = create_model( sess, FLAGS.batch_size )
 
-    encoder_inputs = model.get_test_data( FLAGS.test_fname)
-    encoder_inputs = model.input_normalizer.transform(encoder_inputs)
+    list_of_experiments = glob.glob(os.path.join(".", "log_HG2D", "*"))
+    p2d_dir = os.path.join(max(list_of_experiments, key=os.path.getctime), "predictions") # latest created dir for latest experiment
+    list_of_preds = glob.glob(os.path.join(p2d_dir, "*"))
+    
+    print("\n")
+    for test_fname in list_of_preds:
+        test_fname = test_fname.split("/")[-1]
+        print("Converting {} to p3d".format(test_fname))
+        a = time.time()
+        
+        encoder_inputs = model.get_test_data(os.path.join(p2d_dir, test_fname))
+        encoder_inputs = model.input_normalizer.transform(encoder_inputs)
 
-    decoder_outputs = model.test_step(encoder_inputs, sess)
+        decoder_outputs = model.test_step(encoder_inputs, sess)
 
-    decoder_outputs = model.output_normalizer.inverse_transform(decoder_outputs)
+        decoder_outputs = model.output_normalizer.inverse_transform(decoder_outputs)
+        print("Done in {} s".format(time.time() - a))
 
-    utils.generate_submission_3d(decoder_outputs, fname_test_out)
+        experiment = p2d_dir.split("/")[-2]
+        submissions_dir = os.path.join(train_dir, "submissions_for_{}".format(experiment))
+        if not os.path.exists(submissions_dir):
+            os.makedirs(submissions_dir)
+        
+        step_nb = test_fname.split(".")[-2].split("_")[-1]
+        out_file = os.path.join(submissions_dir, "p3d_step_{}.csv.gz".format(step_nb))
+        print("saving at: {}".format(out_file))
+        print("\n\n")
+        utils.generate_submission_3d(decoder_outputs, out_file)
 
 
 def main(_):

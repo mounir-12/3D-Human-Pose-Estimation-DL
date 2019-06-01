@@ -20,16 +20,11 @@ import tensorflow as tf
 
 import data_utils
 import linear_model
+import utils
 
 tf.app.flags.DEFINE_float("learning_rate", 1e-3, "Learning rate")
 tf.app.flags.DEFINE_integer("batch_size", 64, "Batch size to use during training")
 tf.app.flags.DEFINE_integer("epochs", 200, "How many epochs we should train for")
-#tf.app.flags.DEFINE_boolean("camera_frame", False, "Convert 3d poses to camera coordinates")
-
-# Data loading
-tf.app.flags.DEFINE_boolean("predict_14", False, "predict 14 joints")
-tf.app.flags.DEFINE_boolean("use_sh", False, "Use 2d pose predictions from StackedHourglass")
-tf.app.flags.DEFINE_string("action","All", "The action to train on. 'All' means all the actions")
 
 # Architecture
 tf.app.flags.DEFINE_integer("linear_size", 1024, "Size of each model layer.")
@@ -39,32 +34,15 @@ tf.app.flags.DEFINE_boolean("max_norm", True, "Apply maxnorm constraint to the w
 tf.app.flags.DEFINE_boolean("batch_norm", True, "Use batch_normalization")
 tf.app.flags.DEFINE_float("dropout", 0.5, "Dropout keep probability. 1 means no dropout")
 
-# Evaluation
-# tf.app.flags.DEFINE_boolean("procrustes", False, "Apply procrustes analysis at test time")
-#tf.app.flags.DEFINE_boolean("evaluateActionWise",False, "The dataset to use either h36m or heva")
-
 # Directories
-#tf.app.flags.DEFINE_string("cameras_path","data/h36m/cameras.h5","Directory to load camera parameters")
-#tf.app.flags.DEFINE_string("data_dir",   "data/h36m/", "Data directory")
-tf.app.flags.DEFINE_string("train_dir", "experiments", "Training directory.")
-
-# Train or load
-tf.app.flags.DEFINE_boolean("sample", False, "Set to True for sampling.")
-tf.app.flags.DEFINE_boolean("use_cpu", False, "Whether to use the CPU")
-tf.app.flags.DEFINE_integer("load", 0, "Try to load a previous checkpoint.")
-
-# Misc
-tf.app.flags.DEFINE_boolean("use_fp16", False, "Train using fp16 instead of fp32.")
+tf.app.flags.DEFINE_string("train_dir", os.path.join(".", "log_SB", utils.timestamp()), "Training directory.")
 
 FLAGS = tf.app.flags.FLAGS
 
 train_dir = FLAGS.train_dir
 
 print("Train dir: {}\n".format(train_dir))
-summaries_dir = os.path.join( train_dir, "log" ) # Directory for TB summaries
-
-# To avoid race conditions: https://github.com/tensorflow/tensorflow/issues/7448
-os.system('mkdir -p {}'.format(summaries_dir))
+summaries_dir = os.path.join( train_dir, "checkpoints" ) # Directory for TB summaries
 
 def create_model( session, batch_size ):
   """
@@ -89,46 +67,18 @@ def create_model( session, batch_size ):
       batch_size,
       FLAGS.learning_rate,
       summaries_dir,
-      FLAGS.predict_14,
-      dtype=tf.float16 if FLAGS.use_fp16 else tf.float32)
-
-  # Create a new model from scratch
-  if FLAGS.load <=0:
-    print("Creating model with fresh parameters.")
-    session.run( tf.global_variables_initializer() )
-    return model
-
-  # Load a previously saved model
-  ckpt = tf.train.get_checkpoint_state( train_dir, latest_filename="checkpoint")
-  print( "train_dir", train_dir )
-
-  if ckpt and ckpt.model_checkpoint_path:
-    # Check if the specific checkpoint exists
-    if FLAGS.load > 0:
-      if os.path.isfile(os.path.join(train_dir,"checkpoint-{0}.index".format(FLAGS.load))):
-        ckpt_name = os.path.join( os.path.join(train_dir,"checkpoint-{0}".format(FLAGS.load)) )
-      else:
-        raise ValueError("Asked to load checkpoint {0}, but it does not seem to exist".format(FLAGS.load))
-    else:
-      ckpt_name = os.path.basename( ckpt.model_checkpoint_path )
-
-    print("Loading model {0}".format( ckpt_name ))
-    model.saver.restore( session, ckpt.model_checkpoint_path )
-    return model
-  else:
-    print("Could not find checkpoint. Aborting.")
-    raise( ValueError, "Checkpoint {0} does not seem to exist".format( ckpt.model_checkpoint_path ) )
-
+      dtype=tf.float32)
+  print("Creating model with fresh parameters.")
+  session.run( tf.global_variables_initializer() )
   return model
 
 def train():
   """Train a linear model for 3d pose estimation"""
-  
-  # Avoid using the GPU if requested
-  device_count = {"GPU": 0} if FLAGS.use_cpu else {"GPU": 1}
-  with tf.Session(config=tf.ConfigProto(
-    device_count=device_count,
-    allow_soft_placement=True )) as sess:
+
+  config = tf.ConfigProto()
+  config.gpu_options.allow_growth = True
+  config.gpu_options.visible_device_list = "0"
+  with tf.Session(config=config) as sess:
 
     # === Create the model ===
     print("Creating %d bi-layers of %d units." % (FLAGS.num_layers, FLAGS.linear_size))
@@ -137,9 +87,8 @@ def train():
     print("Model created")
 
     #=== This is the training loop ===
-    step_time, loss, val_loss = 0.0, 0.0, 0.0
-    current_step = 0 if FLAGS.load <= 0 else FLAGS.load + 1
-    previous_losses = []
+    step_time, loss = 0.0, 0.0
+    current_step = 0
 
     step_time, loss = 0, 0
     current_epoch = 0
@@ -185,10 +134,10 @@ def train():
             model.learning_rate.eval(), loss) )
       # === End training for an epoch ===
 
-      # Save the model
+      # Save the model every epoch
       print( "Saving the model... ", end="" )
       start_time = time.time()
-      model.saver.save(sess, os.path.join(train_dir, 'checkpoint'), global_step=current_step )
+      model.saver.save(sess, os.path.join(summaries_dir, "model"), global_step=current_step )
       print( "done in {0:.2f} ms".format(1000*(time.time() - start_time)) )
 
       # Reset global time and loss
