@@ -232,6 +232,8 @@ def create_dataloader_test_resnet50(data_root, batch_size):
     return dataloader
 
 
+# -------------------------------------------- Data Augmentation + 2d_hourglass specific functions -------------------------------------------------
+
 def augment_data_3d(imgs, poses, max_rotation, max_translation max_scaling):
     n = imgs.shape[0]
 
@@ -259,3 +261,28 @@ def augment_data_3d(imgs, poses, max_rotation, max_translation max_scaling):
 
 
     return imgs, poses
+
+def preprocess_image_aug(image, angle, dt):
+    image = tf.image.decode_jpeg(image, channels=3)
+    image = tf.cast(image,tf.float32) / 128. - 1
+    image = tf.transpose(a=image, perm=[2, 0, 1]) # images are read in channels_last format, so convert to channels_first format
+    tf.contrib.image.rotate( image, angle, interpolation='BILINEAR')
+
+    tf.contrib.image.translate( image, dt, interpolation='BILINEAR')
+    return image
+
+def load_and_preprocess_image_and_pose_aug(path, pose):
+    image = tf.read_file(path)
+    angle = np.random.uniform(-max_rotation, max_rotation)
+    dt = np.random.uniform(-max_translation, max_translation, 2)
+    image = preprocess_image_aug(image, angle, dt)
+    pose = tf.cast(pose,tf.float32)
+    M = tf.constant([[np.cos(angle), np.sin(angle), 0], [-np.sin(angle), np.cos(angle), 0], [0, 0, 1]])
+    pose = tf.matmul(M, pose, transpose_b=True)
+    pose = tf.transpose(pose)
+    return image,pose
+
+def load_and_preprocess_image_aug(path):
+    image = tf.read_file(path)
+    image = preprocess_image(image)
+    return image
