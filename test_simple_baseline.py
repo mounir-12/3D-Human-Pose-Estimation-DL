@@ -74,7 +74,9 @@ def create_model( session, batch_size ):
       batch_size,
       dtype=tf.float32)
 
-  model.saver.restore(session,tf.train.latest_checkpoint(summaries_dir)) # restore model from last checkpoint
+  to_restore = tf.train.latest_checkpoint(summaries_dir)
+  print("\nRestoring model from {}\n".format(to_restore))
+  model.saver.restore(session, to_restore) # restore model from last checkpoint
 
   return model
 
