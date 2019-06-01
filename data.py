@@ -14,6 +14,7 @@ import tensorflow as tf
 import h5py
 import os
 import numpy as np
+import cv2
 
 # fix random seeds in this file since used by all training files to load data
 tf.random.set_random_seed(5)
