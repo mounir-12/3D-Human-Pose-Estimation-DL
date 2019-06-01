@@ -267,7 +267,6 @@ def preprocess_image_aug(image, angle, dt):
     image = tf.cast(image,tf.float32) / 128. - 1
     image = tf.transpose(a=image, perm=[2, 0, 1]) # images are read in channels_last format, so convert to channels_first format
     tf.contrib.image.rotate( image, angle, interpolation='BILINEAR')
-
     tf.contrib.image.translate( image, dt, interpolation='BILINEAR')
     return image
 
@@ -277,9 +276,18 @@ def load_and_preprocess_image_and_pose_aug(path, pose):
     dt = np.random.uniform(-max_translation, max_translation, 2)
     image = preprocess_image_aug(image, angle, dt)
     pose = tf.cast(pose,tf.float32)
-    M = tf.constant([[np.cos(angle), np.sin(angle), 0], [-np.sin(angle), np.cos(angle), 0], [0, 0, 1]])
-    pose = tf.matmul(M, pose, transpose_b=True)
-    pose = tf.transpose(pose)
+    M = tf.constant([[np.cos(angle), -np.sin(angle), 0], [np.sin(angle), np.cos(angle), 0], [0, 0, 1]])
+    pose = tf.matmul(pose, M)
+    return image,pose
+
+def load_and_preprocess_image_and_pose2d_aug(path, pose2d):
+    image = tf.read_file(path)
+    angle = np.random.uniform(-max_rotation, max_rotation)
+    dt = np.random.uniform(-max_translation, max_translation, 2)
+    image = preprocess_image_aug(image, angle, dt)
+    pose = tf.cast(pose2d,tf.float32)
+    M = tf.constant([[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]])
+    pose = tf.matmul(pose, M)
     return image,pose
 
 def load_and_preprocess_image_aug(path):
