@@ -229,3 +229,32 @@ def create_dataloader_test_resnet50(data_root, batch_size):
     dataloader = iterator.get_next()
 
     return dataloader
+
+
+def augment_data_3d(imgs, poses, max_rotation, max_translation max_scaling):
+    n = imgs.shape[0]
+
+    rows,cols = imgs.shape[1], imgs.shape[2]
+
+    for  i in range(n):
+        angle = np.random.uniform(-max_rotation, max_rotation)
+        t_x = np.random.uniform(-max_translation, max_translation)
+        t_y = np.random.uniform(-max_translation, max_translation)
+        scale = np.random.uniform(1, max_scaling)
+
+        M = np.array([[1,0,t_x],[0,1,t_y]])
+
+        imgs[i] = cv2.warpAffine(imgs[i], M, (rows, cols))
+
+        M = cv2.getRotationMatrix2D((cols/2,rows/2),angle,scale)
+
+        imgs[i] = cv2.warpAffine(imgs[i], M, (rows, cols))
+
+        angle = angle*np.pi/180
+
+        M = np.array([[np.cos(angle), np.sin(angle), 0], [-np.sin(angle), np.cos(angle), 0], [0, 0, 1]])
+
+        poses[i] = np.matmul(M, poses[i].T).T
+
+
+    return imgs, poses
