@@ -21,6 +21,10 @@ tf.random.set_random_seed(5)
 np.random.seed(5)
 print("\nFixed random seeds\n")
 
+max_rotation = np.pi/180 * 5
+max_translation = 20
+max_scaling = 1.2
+
 # ---------------------------------------- Basic Data Loading Function -------------------------------------------------------
 
 def preprocess_image(image):
@@ -234,7 +238,7 @@ def create_dataloader_test_resnet50(data_root, batch_size):
 
 # -------------------------------------------- Data Augmentation + 2d_hourglass specific functions -------------------------------------------------
 
-def augment_data_3d(imgs, poses, max_rotation, max_translation max_scaling):
+def augment_data_3d(imgs, poses, max_rotation, max_translation, max_scaling):
     n = imgs.shape[0]
 
     rows,cols = imgs.shape[1], imgs.shape[2]
