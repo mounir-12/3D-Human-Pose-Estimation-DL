@@ -60,9 +60,15 @@ annotations_path = os.path.join(DATA_PATH,"annot","train.h5")
 annotations = h5py.File(annotations_path, 'r')
 np.set_printoptions(suppress=True)
 
+fig = plt.figure()
+ax_img = fig.add_subplot(131)
+ax_p2d = fig.add_subplot(132)
+ax_p3d = fig.add_subplot(133, projection='3d') # the 3d axes, x-axis grows to the right, y-axis grows to the bottom, z-axis grows towards the screen, origin is at the pelvis (root joint)
+    
 for i,path in enumerate(all_image_paths):
-    if i >= max_num: # only show the max_num images with their 2D joints + 3D skeleton
-        break;
+
+#    if i >= max_num: # only show the max_num images with their 2D joints + 3D skeleton
+#        break;
 
 # Some interesting images for 3d pose:
 #   image i = 223431 has max distance between any pair of joints along x-axis
@@ -71,16 +77,12 @@ for i,path in enumerate(all_image_paths):
 #   image i = 98452 has max x-value for some joint in it
 #    if i != 98452:
 #        continue
-    print(path)
+    
+#    print(path)
 
 # empirically, every pixel in 2d correspond to around 6.5 mm distance in 3d along x axis
-# so given a joint j with x_j,2d in pixels and x_j,3d in mm, we can roughly convert as follows: x_j,3d = (x_j,2d - x_root,2d) * 6.5 (with some of around 7 pixels, i,e around 7*6.5mm since 6.5 is 
+# so given a joint j with x_j,2d in pixels and x_j,3d in mm, we can roughly convert as follows: x_j,3d = (x_j,2d - x_root,2d) * 6.5 (with error of around 7 pixels, i,e around 7*6.5mm since 6.5 is 
 # just an estimate)
-
-    fig = plt.figure()
-    ax_img = fig.add_subplot(131)
-    ax_p2d = fig.add_subplot(132)
-    ax_p3d = fig.add_subplot(133, projection='3d') # the 3d axes, x-axis grows to the right, y-axis grows to the bottom, z-axis grows towards the screen, origin is at the pelvis (root joint)
 
     image = cv2.imread(path)
     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
@@ -94,8 +96,11 @@ for i,path in enumerate(all_image_paths):
     ax_p2d.imshow(image_p2d)
 
     p3d = annotations["pose3d"][i]
-    print(annotations["pose2d"][i])
-    print(p3d)
-    print(p3d.shape)
+#    print(annotations["pose2d"][i])
+#    print(p3d)
+#    print(p3d.shape)
     show3Dpose(p3d, ax_p3d)
-    plt.show()
+    plt.pause(0.05)
+    plt.cla()
+    
+plt.show()

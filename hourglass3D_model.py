@@ -185,10 +185,14 @@ class C2FStackedHourglass: # Coarse to Fine Stacked Hourglass
                 
                 outputs_gt.append(tf.stack(all_heatmaps))
             
-#        with tf.Session() as sess:
-#            sess.run(tf.global_variables_initializer())
-#            outputs_gt_vals, images = sess.run([outputs_gt, self.inp])
-#            image = ((images[0]+1)*128.0).transpose(1,2,0).astype("uint8") # unnormalize, put in channels_last format and cast to uint8
+        with tf.Session() as sess:
+            sess.run(tf.global_variables_initializer())
+            outputs_gt_vals, all_heatmaps_pred_vals, images = sess.run([outputs_gt, all_heatmaps_pred, self.inp])
+            print(len(outputs_gt_vals))
+            print(outputs_gt_vals[0].shape)
+            print(len(all_heatmaps_preds_vals))
+            print(all_heatmaps_preds_vals[0].shape)
+#            image = ((images[0]+1)*128.0).transpose(1,2,0).astype("uint8")  unnormalize, put in channels_last format and cast to uint8
 #            image = Image.fromarray(image, "RGB")
 #            if not os.path.exists("test_gt_heatmaps"):
 #                os.makedirs("test_gt_heatmaps")
@@ -200,7 +204,7 @@ class C2FStackedHourglass: # Coarse to Fine Stacked Hourglass
 #                image = Image.fromarray(out)
 #                image = image.resize((256,256))
 #                image.save("test_gt_heatmaps/joint_{}_{}.png".format(joint_nb, plane_nb))
-#        return None
+        return None
 
         with tf.name_scope("loss"):
             total_loss = 0

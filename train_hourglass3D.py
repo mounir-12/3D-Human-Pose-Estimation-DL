@@ -44,6 +44,7 @@ SIGMA=2
 # Data parameters
 SHUFFLE=True
 DATA_TO_LOAD="pose3d"
+AUGMENT_DATA=True
 BATCHES_TO_PREFETCH=20
 
 # Paths
@@ -66,6 +67,7 @@ print("\n")
 print("Run infos:")
 print("    NUM_EPOCHS: {}".format(NUM_EPOCHS))
 print("    BATCH_SIZE: {}".format(BATCH_SIZE))
+print("    AUGMENT_DATA: {}".format(AUGMENT_DATA))
 print("    LEARNING_RATE: {}".format(LEARNING_RATE))
 print("    LOG_DIR: {}".format(LOG_PATH))
 print("    CONTINUE_TRAINING: {}".format(CONTINUE_TRAINING))
@@ -79,11 +81,19 @@ with tf.Session(config=config) as sess:
     
     # load datasets
     train_ds, valid_ds, VALID_SIZE, _, _ = create_dataloader_train(data_root=DATA_PATH, batch_size=BATCH_SIZE, valid_size=VALID_SAMPLES,
-                                                                   batches_to_prefetch=BATCHES_TO_PREFETCH, data_to_load=DATA_TO_LOAD, shuffle=SHUFFLE)
+                                                                   batches_to_prefetch=BATCHES_TO_PREFETCH, data_to_load=DATA_TO_LOAD, shuffle=SHUFFLE, augment=AUGMENT_DATA)
     NUM_SAMPLES = NUM_SAMPLES - VALID_SIZE # update NUM_SAMPLES
     im_train, p3d_gt_train = train_ds
     im_valid, p3d_gt_valid = valid_ds
-    
+
+#    for j in range(5):                                                       
+#        images, p3d_gt_vals = sess.run([im_train, p3d_gt_train])
+#        
+#        for index in range(BATCH_SIZE):
+#            image = ((images[index]+1)*128.0).transpose(1,2,0).astype("uint8") # unnormalize, put in channels_last format and cast to uint8
+#            save_dir = os.path.join(LOG_PATH, "augmented_samples")
+#            utils.save_p3d_image(image, p3d_gt_vals[index], None, save_dir, j*BATCH_SIZE+index)
+#                            
 #    sys.exit(0)
 
     print("Building model, Z_RES: {}, Sigma: {} ...\n".format(Z_RES, SIGMA))
@@ -113,7 +123,7 @@ with tf.Session(config=config) as sess:
     sys.stdout.flush()
     loss_train = model_train.compute_loss(p3d_gt_train, all_heatmaps_pred_train)
     loss_valid = model_valid.compute_loss(p3d_gt_valid, all_heatmaps_pred_valid)
-#    sys.exit(0)
+    sys.exit(0)
 
     # define trainer
     print("Train op...")

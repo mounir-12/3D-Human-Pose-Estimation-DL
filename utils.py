@@ -70,11 +70,12 @@ def save_p2d_image(image, p2d_gt, p2d_pred, dir_name, index, radius=3):
         for i, joint in enumerate(p2d_gt): # mark all 2D ground truth joints on the image
             joint = (int(joint[0]), int(joint[1]))
             image_p2d = cv2.circle(image_p2d, joint, radius, colors[i],-1) # put a circle marker at the position of the joint in the image
-        
-    for i, joint in enumerate(p2d_pred): # mark all predicted 2D joints on the image
-        pt1 = (int(joint[0]) - radius , int(joint[1]) - radius) # 2D coordinates of rectangle corner
-        pt2 = (int(joint[0]) + radius , int(joint[1]) + radius) # 2D coordinates of opposite rectangle corner
-        image_p2d = cv2.rectangle(image_p2d, pt1, pt2, colors[i],-1) # put a rectangle/square marker centered at the position of the joint in the image
+    
+    if p2d_pred is not None: # if predicted pose available them mark them
+        for i, joint in enumerate(p2d_pred): # mark all predicted 2D joints on the image
+            pt1 = (int(joint[0]) - radius , int(joint[1]) - radius) # 2D coordinates of rectangle corner
+            pt2 = (int(joint[0]) + radius , int(joint[1]) + radius) # 2D coordinates of opposite rectangle corner
+            image_p2d = cv2.rectangle(image_p2d, pt1, pt2, colors[i],-1) # put a rectangle/square marker centered at the position of the joint in the image
         
     img = Image.fromarray(image_p2d, "RGB")
     img.save(os.path.join(dir_name, "img_{}.png".format(index)))
@@ -85,13 +86,18 @@ def save_p3d_image(image, p3d_gt, p3d_pred, dir_name, index):
         os.makedirs(dir_name)
         
     fig = plt.figure(figsize=(25, 25))
-    if p3d_gt is not None: # create subplot for p3d_gt
+    if p3d_gt is not None and p3d_pred is not None: # create subplot for p3d_gt and p3d_pred
         ax_p3d_gt = fig.add_subplot(311, projection='3d')
         ax_p3d_pred = fig.add_subplot(312, projection='3d')
         ax_img = fig.add_subplot(313)
-    else: # only create subplots for p3d_pred and image
+    elif p3d_pred is not None: # only create subplots for p3d_pred and image
         ax_p3d_pred = fig.add_subplot(211, projection='3d')
         ax_img = fig.add_subplot(212)
+    elif p3d_gt is not None: # only create subplots for p3d_gt and image
+        ax_p3d_gt = fig.add_subplot(211, projection='3d')
+        ax_img = fig.add_subplot(212)
+    else: # only create subplot for image
+        ax_img = fig.add_subplot(111)
     
     ax_img.imshow(image)
     
@@ -102,10 +108,10 @@ def save_p3d_image(image, p3d_gt, p3d_pred, dir_name, index):
             # plot p3d_gt
             transformed = transform_pose(p3d_gt, M)
             plot_3D_pose(transformed, ax_p3d_gt, "Ground Truth")
-        
-        # plot p3d_pred
-        transformed = transform_pose(p3d_pred, M)
-        plot_3D_pose(transformed, ax_p3d_pred, "Predictions")
+        if p3d_pred is not None:
+            # plot p3d_pred
+            transformed = transform_pose(p3d_pred, M)
+            plot_3D_pose(transformed, ax_p3d_pred, "Predictions")
         
         # save figure
         fig_name = "fig_rot_{}.png".format(degrees)
@@ -114,7 +120,8 @@ def save_p3d_image(image, p3d_gt, p3d_pred, dir_name, index):
         # clear 3D pose axes
         if p3d_gt is not None:
             ax_p3d_gt.clear()
-        ax_p3d_pred.clear()
+        if p3d_pred is not None:
+            ax_p3d_pred.clear()
     plt.close()
         
 def plot_3D_pose(channels, ax, title):
