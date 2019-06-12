@@ -80,8 +80,10 @@ def save_p2d_image(image, p2d_gt, p2d_pred, dir_name, index, radius=3):
     img = Image.fromarray(image_p2d, "RGB")
     img.save(os.path.join(dir_name, "img_{}.png".format(index)))
     
-def save_p3d_image(image, p3d_gt, p3d_pred, dir_name, index):
-    dir_name = os.path.join(dir_name, "img_{}".format(index))
+def save_p3d_image(image, p3d_gt, p3d_pred, dir_name, index, rotation_degrees=[0, 90, 180, 270], save_in_same_folder=False):
+    if not save_in_same_folder:
+        dir_name = os.path.join(dir_name, "img_{}".format(index))
+    
     if not os.path.exists(dir_name):
         os.makedirs(dir_name)
         
@@ -101,7 +103,7 @@ def save_p3d_image(image, p3d_gt, p3d_pred, dir_name, index):
     
     ax_img.imshow(image)
     
-    for degrees in range(0, 360, 90): # plot 3D pose from 4 sides
+    for degrees in rotation_degrees: # plot 3D pose from 4 sides
         M = get_rot_matrix_around_y(degrees)
         
         if p3d_gt is not None:
@@ -114,7 +116,10 @@ def save_p3d_image(image, p3d_gt, p3d_pred, dir_name, index):
             plot_3D_pose(transformed, ax_p3d_pred, "Predictions")
         
         # save figure
-        fig_name = "fig_rot_{}.png".format(degrees)
+        if save_in_same_folder:
+            fig_name = "fig_{}_rot_{}.png".format(index, degrees)
+        else:
+            fig_name = "fig_rot_{}.png".format(degrees)
         fig.savefig(os.path.join(dir_name, fig_name))
         
         # clear 3D pose axes
