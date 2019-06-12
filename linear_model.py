@@ -43,7 +43,6 @@ class LinearModel(object):
                batch_size,
                learning_rate=0.001,
                summaries_dir=None,
-               predict_14=False,
                dtype=tf.float32):
     """Creates the linear + relu model
 
@@ -72,7 +71,7 @@ class LinearModel(object):
     # hip to account for!
     # There is also an option to predict only 14 joints, which makes our results
     # directly comparable to those in https://arxiv.org/pdf/1611.09010.pdf
-    self.HUMAN_3D_SIZE = 14 * 3 if predict_14 else 17 * 3
+    self.HUMAN_3D_SIZE = 17 * 3
 
     self.input_size  = self.HUMAN_2D_SIZE
     self.output_size = self.HUMAN_3D_SIZE
@@ -268,7 +267,7 @@ class LinearModel(object):
       outputs = session.run(output_feed, input_feed)
       return outputs[0], outputs[1], outputs[2]  # No gradient norm
 
-  def get_all_batches_new(self, training=True ):
+  def get_all_batches(self, training=True ):
 
     n = self.gt_inputs.shape[0]
 

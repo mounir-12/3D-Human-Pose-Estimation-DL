@@ -98,7 +98,7 @@ def train():
       current_epoch = current_epoch + 1
 
       # === Load training batches for one epoch ===
-      encoder_inputs, decoder_outputs = model.get_all_batches_new(training=True )
+      encoder_inputs, decoder_outputs = model.get_all_batches(training=True )
       nbatches = len( encoder_inputs )
       print("There are {0} train batches".format( nbatches ))
       start_time, loss = time.time(), 0.

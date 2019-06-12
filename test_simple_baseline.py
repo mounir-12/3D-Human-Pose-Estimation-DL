@@ -107,6 +107,12 @@ def test():
         decoder_outputs = model.test_step(encoder_inputs, sess)
 
         decoder_outputs = model.output_normalizer.inverse_transform(decoder_outputs)
+
+        for i in range(decoder_outputs.shape[0]):
+          temp = decoder_outputs[i].reshape(17,3)
+          temp -= temp[0]
+          decoder_outputs[i] = temp.reshape(17*3)
+
         print("Done in {} s".format(time.time() - a))
 
         experiment = p2d_dir.split("/")[-2]
