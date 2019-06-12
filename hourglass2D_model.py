@@ -165,13 +165,16 @@ class StackedHourglass:
             prob = tf.reshape(tf.exp(-tf.reduce_sum(tf.square(idx-mean), axis=1)/(2*var)), tf.shape(X)) # compute unormalized 2D gaussian (so max value is 1) manually and reshape to [H, W]
             return prob
             
-    def get_train_op(self, loss, learning_rate=0.001):
+    def get_train_op(self, loss, decay_steps, learning_rate=0.001):
         with tf.name_scope("train"):
             self.global_step = tf.Variable(0, name='global_step',trainable=False)
+            learning_rate = tf.train.exponential_decay(learning_rate, self.global_step, 
+                                                       decay_steps=decay_steps, decay_rate=0.5, staircase=True) # divide the learning rate by 2 every "decay_steps"
             update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS) # for batch norm
             with tf.control_dependencies(update_ops):
                 self.train_op = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(loss, self.global_step)
-            return self.train_op, self.global_step
+            self.learning_rate = learning_rate
+            return self.train_op, self.global_step, self.learning_rate
         
 
         

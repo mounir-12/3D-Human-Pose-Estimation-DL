@@ -123,12 +123,15 @@ with tf.Session(config=config) as sess:
     sys.stdout.flush()
     loss_train = model_train.compute_loss(p3d_gt_train, all_heatmaps_pred_train)
     loss_valid = model_valid.compute_loss(p3d_gt_valid, all_heatmaps_pred_valid)
-    sys.exit(0)
+#    sys.exit(0)
 
     # define trainer
     print("Train op...")
     sys.stdout.flush()
-    train_op, global_step = model_train.get_train_op(loss_train, learning_rate=LEARNING_RATE)
+    decay_steps = NUM_SAMPLES // BATCH_SIZE # decay every end of epoch
+    print("Learning rate decaying every {} steps".format(decay_steps))
+    sys.stdout.flush()
+    train_op, global_step, learning_rate = model_train.get_train_op(loss_train, decay_steps=decay_steps, learning_rate=LEARNING_RATE)
 #    sys.exit(0)
 
     print("MPJPE ...")
@@ -141,7 +144,8 @@ with tf.Session(config=config) as sess:
     print("Summaries ...")
     sys.stdout.flush()
     train_summary = tf.summary.merge([tf.summary.scalar("train_loss", loss_train),
-                                     tf.summary.scalar("train_mpjpe", mpjpe_train)])
+                                     tf.summary.scalar("train_mpjpe", mpjpe_train),
+                                     tf.summary.scalar("learning_rate", learning_rate)])
     
     valid_loss_pl = tf.placeholder(dtype=tf.float32)
     valid_mpjpe_pl = tf.placeholder(dtype=tf.float32)
