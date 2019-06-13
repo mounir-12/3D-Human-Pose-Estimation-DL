@@ -39,18 +39,6 @@ train_dir = FLAGS.train_dir
 print("\n")
 print(train_dir)
 print("\n")
-# checkpoint_path = os.path.join(train_dir, "checkpoint")
-
-# if os.path.isfile(checkpoint_path):
-#   dictionary = {}
-#   with open(checkpoint_path) as f:
-#     for line in f:
-#       key, value = line.strip().split(': ')
-#       dictionary[key] = value[1:-1]
-
-#   latest_ckpt = dictionary['model_checkpoint_path']
-# else:
-#   raise ValueError("{0} does not seem to exist".format( checkpoint_path ) )
 
 summaries_dir = os.path.join( train_dir, "checkpoints" )
 

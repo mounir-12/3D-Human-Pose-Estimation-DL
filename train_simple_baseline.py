@@ -15,7 +15,7 @@ import copy
 
 import matplotlib.pyplot as plt
 import numpy as np
-from six.moves import xrange  # pylint: disable=redefined-builtin
+from six.moves import xrange
 import tensorflow as tf
 
 import data_utils

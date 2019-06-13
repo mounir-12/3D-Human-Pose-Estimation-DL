@@ -9,10 +9,9 @@ from tensorflow.python.ops import variable_scope as vs
 
 import os
 import numpy as np
-from six.moves import xrange  # pylint: disable=redefined-builtin
+from six.moves import xrange
 import tensorflow as tf
 import data_utils
-# import cameras as cam
 import h5py
 
 from sklearn.preprocessing import StandardScaler
@@ -55,22 +54,11 @@ class LinearModel(object):
       batch_size: integer. The size of the batches used during training
       learning_rate: float. Learning rate to start with
       summaries_dir: String. Directory where to log progress
-      predict_14: boolean. Whether to predict 14 instead of 17 joints
       dtype: the data type to use to store internal variables
     """
 
-    # There are in total 17 joints in H3.6M and 16 in MPII (and therefore in stacked
-    # hourglass detections). We settled with 16 joints in 2d just to make models
-    # compatible (e.g. you can train on ground truth 2d and test on SH detections).
-    # This does not seem to have an effect on prediction performance.
+    # There are in total 17 joints in H3.6M.
     self.HUMAN_2D_SIZE = 17 * 2
-
-    # In 3d all the predictions are zero-centered around the root (hip) joint, so
-    # we actually predict only 16 joints. The error is still computed over 17 joints,
-    # because if one uses, e.g. Procrustes alignment, there is still error in the
-    # hip to account for!
-    # There is also an option to predict only 14 joints, which makes our results
-    # directly comparable to those in https://arxiv.org/pdf/1611.09010.pdf
     self.HUMAN_3D_SIZE = 17 * 3
 
     self.input_size  = self.HUMAN_2D_SIZE
@@ -268,13 +256,18 @@ class LinearModel(object):
       return outputs[0], outputs[1], outputs[2]  # No gradient norm
 
   def get_all_batches(self, training=True ):
+    """Fetch shuffled training batches..
+
+    Args
+      training: whether to shuffle data or not
+    """
 
     n = self.gt_inputs.shape[0]
 
     assert n==self.gt_outputs.shape[0]
 
     if training:
-      # Randomly permute everything
+      # Randomly permute data
       idx = np.random.permutation( n )
 
       gt_inputs  = self.gt_inputs[idx, :]
@@ -295,6 +288,11 @@ class LinearModel(object):
 
 
   def get_test_data(self, fname):
+    """Fetch test data..
+
+    Args
+      fname: path to 2d hourglass prediction (csv file)
+    """
     print("Test file: {}".format(fname))
     test_inputs  = np.loadtxt(fname, skiprows = 1, delimiter = ',')
     test_inputs = test_inputs[:,1:]
@@ -303,6 +301,12 @@ class LinearModel(object):
     return  test_inputs
 
   def test_step(self, enc_in, sess):
+    """Run a forward pass through the network feeding the test data as input..
+
+    Args
+      sess: tensorflow session object
+      enc_in: test data input
+    """
     input_feed = {self.encoder_inputs: enc_in, self.isTraining: False, self.dropout_keep_prob: 1}
     output_feed = self.outputs
     return sess.run(output_feed, input_feed)
