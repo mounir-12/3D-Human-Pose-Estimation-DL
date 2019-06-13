@@ -28,6 +28,7 @@ CONTINUE_TRAINING = False
 NUM_EPOCHS = 4
 BATCH_SIZE = 4
 LEARNING_RATE = 0.001
+DECAY_LR=True
 LOG_ITER_FREQ = 100
 VALID_ITER_FREQ = 500
 VALID_STEPS = 10 # number of validation batches to use to compute the mean validation loss and mpjpe
@@ -128,10 +129,16 @@ with tf.Session(config=config) as sess:
     # define trainer
     print("Train op...")
     sys.stdout.flush()
-    decay_steps = NUM_SAMPLES // BATCH_SIZE # decay every end of epoch
-    print("Learning rate decaying every {} steps".format(decay_steps))
-    sys.stdout.flush()
-    train_op, global_step, learning_rate= model_train.get_train_op(loss_train, decay_steps=decay_steps, learning_rate=LEARNING_RATE)
+    if DECAY_LR: # perform learning rate decay
+        decay_steps = NUM_SAMPLES // BATCH_SIZE # decay every end of epoch
+        decay_rate = 0.5 # divide learning by 2 every decay_steps
+        print("Learning rate decaying every {} steps by a factor of {}".format(decay_steps, 1.0/decay_rate))
+        sys.stdout.flush()
+        train_op, global_step, learning_rate= model_train.get_train_op(loss_train, decay_steps=decay_steps, decay_rate=decay_rate, learning_rate=LEARNING_RATE)
+    else:
+        print("Learning rate fixed at {}".format(LEARNING_RATE))
+        sys.stdout.flush()
+        train_op, global_step, learning_rate= model_train.get_train_op(loss_train, learning_rate=LEARNING_RATE)
 #    sys.exit(0)
 
     print("MPJPE ...")
