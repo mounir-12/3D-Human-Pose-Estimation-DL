@@ -2,6 +2,7 @@
 
 from tensorflow.python.ops import variable_scope as vs
 
+import tensorflow as tf
 import os
 import numpy as np
 import h5py

@@ -29,7 +29,7 @@ FLAGS = tf.app.flags.FLAGS
 
 train_dir = FLAGS.train_dir
 
-print("Train dir: {}\n".format(train_dir))
+print("\n\nTrain dir: {}\n\n".format(train_dir))
 summaries_dir = os.path.join( train_dir, "checkpoints" ) # Directory for TB summaries
 
 def create_model( session, batch_size ):
@@ -56,7 +56,7 @@ def create_model( session, batch_size ):
       FLAGS.learning_rate,
       summaries_dir,
       dtype=tf.float32)
-  print("Creating model with fresh parameters.")
+  print("\n\nCreating model with fresh parameters.")
   session.run( tf.global_variables_initializer() )
   return model
 
@@ -69,7 +69,7 @@ def train():
   with tf.Session(config=config) as sess:
 
     # === Create the model ===
-    print("Creating %d bi-layers of %d units." % (FLAGS.num_layers, FLAGS.linear_size))
+    print("\n\nCreating %d bi-layers of %d units." % (FLAGS.num_layers, FLAGS.linear_size))
     model = create_model( sess, FLAGS.batch_size )
     model.train_writer.add_graph( sess.graph )
     print("Model created")
