@@ -54,7 +54,6 @@ def create_model( session, batch_size ):
       FLAGS.max_norm,
       batch_size,
       FLAGS.learning_rate,
-      summaries_dir,
       dtype=tf.float32)
   print("\n\nCreating model with fresh parameters.")
   session.run( tf.global_variables_initializer() )
