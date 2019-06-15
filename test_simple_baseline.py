@@ -15,7 +15,6 @@ import numpy as np
 from six.moves import xrange  # pylint: disable=redefined-builtin
 import tensorflow as tf
 
-import data_utils
 import linear_model
 import utils
 
@@ -129,7 +128,6 @@ def test():
     print("Saving code ...")
     submission_files = [
         "data.py",
-        "data_utils.py",
         "hourglass2D_model.py",
         "linear_model.py",
         "train_hourglass2D.py",
