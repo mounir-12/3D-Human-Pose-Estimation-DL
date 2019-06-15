@@ -34,6 +34,7 @@ class LinearModel(object):
                max_norm,
                batch_size,
                learning_rate=0.001,
+               summaries_dir=None,
                dtype=tf.float32):
     """Creates the linear + relu model
 
@@ -45,6 +46,7 @@ class LinearModel(object):
       max_norm: boolean. Whether to clip weights to a norm of 1
       batch_size: integer. The size of the batches used during training
       learning_rate: float. Learning rate to start with
+      summaries_dir: String. Directory where to log progress
       dtype: the data type to use to store internal variables
     """
 
@@ -57,6 +59,11 @@ class LinearModel(object):
 
     self.isTraining = tf.placeholder(tf.bool,name="isTrainingflag")
     self.dropout_keep_prob = tf.placeholder(tf.float32, name="dropout_keep_prob")
+    
+    # Summary writers for train and test runs
+    if summaries_dir is not None:
+        self.train_writer = tf.summary.FileWriter(summaries_dir)
+        self.test_writer  = tf.summary.FileWriter(summaries_dir)
 
     self.linear_size   = linear_size
     self.batch_size    = batch_size
