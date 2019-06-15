@@ -1,9 +1,5 @@
-import math
 import os, glob
-import random
-import sys
 import time
-import h5py
 
 import numpy as np
 import tensorflow as tf

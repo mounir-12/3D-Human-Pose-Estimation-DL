@@ -1,10 +1,8 @@
 """Predicting 3d poses from 2d joints"""
 
-import math
 import os
 import sys
 import time
-import h5py
 
 import numpy as np
 import tensorflow as tf
