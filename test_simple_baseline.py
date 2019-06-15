@@ -1,18 +1,11 @@
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 import math
 import os, glob
 import random
 import sys
 import time
 import h5py
-import copy
 
-import matplotlib.pyplot as plt
 import numpy as np
-from six.moves import xrange  # pylint: disable=redefined-builtin
 import tensorflow as tf
 
 import linear_model
@@ -38,18 +31,6 @@ train_dir = FLAGS.train_dir
 print("\n")
 print(train_dir)
 print("\n")
-# checkpoint_path = os.path.join(train_dir, "checkpoint")
-
-# if os.path.isfile(checkpoint_path):
-#   dictionary = {}
-#   with open(checkpoint_path) as f:
-#     for line in f:
-#       key, value = line.strip().split(': ')
-#       dictionary[key] = value[1:-1]
-
-#   latest_ckpt = dictionary['model_checkpoint_path']
-# else:
-#   raise ValueError("{0} does not seem to exist".format( checkpoint_path ) )
 
 summaries_dir = os.path.join( train_dir, "checkpoints" )
 
@@ -82,7 +63,6 @@ def create_model( session, batch_size ):
 
 def test():
 
-  fname_test_out = os.path.join(train_dir, "submissions", 'simple_baseline_submission.csv')
   config = tf.ConfigProto()
   config.gpu_options.allow_growth = True
   config.gpu_options.visible_device_list = "0"

@@ -1,21 +1,12 @@
-
 """Predicting 3d poses from 2d joints"""
-
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
 import math
 import os
-import random
 import sys
 import time
 import h5py
-import copy
 
-import matplotlib.pyplot as plt
 import numpy as np
-from six.moves import xrange  # pylint: disable=redefined-builtin
 import tensorflow as tf
 
 import linear_model
@@ -93,7 +84,7 @@ def train():
     current_epoch = 0
     log_every_n_batches = 100
 
-    for _ in xrange( FLAGS.epochs ):
+    for _ in range( FLAGS.epochs ):
       current_epoch = current_epoch + 1
 
       # === Load training batches for one epoch ===
