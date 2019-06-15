@@ -1,21 +1,9 @@
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
-import math
 import os, glob
-import random
-import sys
 import time
-import h5py
-import copy
 
-import matplotlib.pyplot as plt
 import numpy as np
-from six.moves import xrange  # pylint: disable=redefined-builtin
 import tensorflow as tf
 
-import data_utils
 import linear_model
 import utils
 
@@ -71,7 +59,6 @@ def create_model( session, batch_size ):
 
 def test():
 
-  fname_test_out = os.path.join(train_dir, "submissions", 'simple_baseline_submission.csv')
   config = tf.ConfigProto()
   config.gpu_options.allow_growth = True
   config.gpu_options.visible_device_list = "0"
@@ -117,7 +104,6 @@ def test():
     print("Saving code ...")
     submission_files = [
         "data.py",
-        "data_utils.py",
         "hourglass2D_model.py",
         "linear_model.py",
         "train_hourglass2D.py",

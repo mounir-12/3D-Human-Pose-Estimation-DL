@@ -1,17 +1,9 @@
-
 """Simple model to regress 3d human poses from 2d joint locations"""
-
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
 from tensorflow.python.ops import variable_scope as vs
 
 import os
 import numpy as np
-from six.moves import xrange
-import tensorflow as tf
-import data_utils
 import h5py
 
 from sklearn.preprocessing import StandardScaler
