@@ -6,6 +6,7 @@
 	- Srikanth Sarma      sgurram@student.ethz.ch
 
 Requirements:
+
 	- Data must be in the current folder or the path `/cluster/project/infk/hilliges/lectures/mp19/project2/` at leonhard cluster should be accesible.
 
 	- Data should be organized in two folders namely `images` and `annot`.
