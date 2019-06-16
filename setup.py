@@ -27,6 +27,8 @@ setup(
                 # Add external libraries here.
                 'tensorflow-gpu==1.12.0',
                 'numpy',
+                'scikit-learn==0.19.1',
+                'scipy==1.0.0',
                 'patool',
                 'opencv-python',
                 'tqdm',
