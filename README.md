@@ -58,7 +58,7 @@ python3 train_hourglass3D.py --continue_training
 Training parameters can be changes using command line arguments. For more details on available arguments, run one of the following commands command:
 ```
 python3 train_hourglass2D.py --help
-python3 train_hourglass2D.py --help
+python3 train_hourglass3D.py --help
 python3 train_simple_baseline.py --help
 python3 test_simple_baseline.py --help
 ```
@@ -68,7 +68,7 @@ Make sure to test the simple baseline with the same parameters as the ones used 
 You can use one of the following commands to predict the 2D/3D poses on the latest checkpoint of each model (please make sure 2D predictions are available before testing using the simple baseline as described above):
 ```
 python3 test_hourglass2D.py
-python3 test_hourglass2D.py
+python3 test_hourglass3D.py
 python3 test_simple_baseline.py
 ```
 
