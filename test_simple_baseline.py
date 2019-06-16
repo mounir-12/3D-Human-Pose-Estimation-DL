@@ -1,4 +1,4 @@
-import os, glob
+import os, glob, sys
 import time
 
 import numpy as np
@@ -6,22 +6,51 @@ import tensorflow as tf
 
 import linear_model
 import utils
+from argparse import ArgumentParser
 
-tf.app.flags.DEFINE_integer("batch_size", 64, "Batch size to use during training")
+parser = ArgumentParser()
+
+parser.add_argument('--batch_size', type = int, default = 64, help = 'size of training batch')
 
 # Architecture
-tf.app.flags.DEFINE_integer("linear_size", 1024, "Size of each model layer.")
-tf.app.flags.DEFINE_integer("num_layers", 2, "Number of layers in the model.")
-tf.app.flags.DEFINE_boolean("residual", True, "Whether to add a residual connection every 2 layers")
-tf.app.flags.DEFINE_boolean("max_norm", True, "Apply maxnorm constraint to the weights")
-tf.app.flags.DEFINE_boolean("batch_norm", True, "Use batch_normalization")
-tf.app.flags.DEFINE_float("dropout", 0.5, "Dropout keep probability. 1 means no dropout")
+parser.add_argument('--linear_size', type = int, default = 1024, help = 'size of each model layer')
+parser.add_argument('--num_layers', type = int, default = 2, help = 'number of layers in the model')
+parser.add_argument('--no_residual', help = 'whether to add a residual connection every 2 layers', action="store_true") # by default, we use residual
+parser.add_argument('--no_max_norm', help = 'whether to apply maxnorm constraint to the weights', action="store_true") # by default, we use max_norm
+parser.add_argument('--no_batch_norm', help = 'whether to use batch_normalization', action="store_true") # by default, we use batch_norm
+
+parser.add_argument('--train_dir', type = str, default = max(glob.glob(os.path.join(".", "log_SB", "*")), key=os.path.getctime) , help = 'directory that contains dir named checkpoints from which to load model')
+
+FLAGS = parser.parse_args()
+
+FLAGS.residual = not FLAGS.no_residual
+FLAGS.max_norm = not FLAGS.no_max_norm
+FLAGS.batch_norm = not FLAGS.no_batch_norm
+
+train_dir = FLAGS.train_dir
+
+print("\n\n")
+print("batch_size:", FLAGS.batch_size)
+print("linear_size:", FLAGS.linear_size)
+print("num_layers:", FLAGS.num_layers)
+print("residual:", FLAGS.residual)
+print("max_norm:", FLAGS.max_norm)
+print("batch_norm:", FLAGS.batch_norm)
+print("train_dir:", FLAGS.train_dir)
+print("\n\n")
+#sys.exit(0)
+
+#tf.app.flags.DEFINE_integer("batch_size", 64, "Batch size to use during training")
+
+## Architecture
+#tf.app.flags.DEFINE_integer("linear_size", 1024, "Size of each model layer.")
+#tf.app.flags.DEFINE_integer("num_layers", 2, "Number of layers in the model.")
+#tf.app.flags.DEFINE_boolean("residual", True, "Whether to add a residual connection every 2 layers")
+#tf.app.flags.DEFINE_boolean("max_norm", True, "Apply maxnorm constraint to the weights")
+#tf.app.flags.DEFINE_boolean("batch_norm", True, "Use batch_normalization")
+#tf.app.flags.DEFINE_float("dropout", 0.5, "Dropout keep probability. 1 means no dropout")
 
 # Directories
-list_of_files = glob.glob(os.path.join(".", "log_SB", "*"))
-tf.app.flags.DEFINE_string("train_dir", max(list_of_files, key=os.path.getctime), "Training directory.") # latest created dir for latest experiment
-
-FLAGS = tf.app.flags.FLAGS
 
 train_dir = FLAGS.train_dir
 print("\n")
