@@ -6,9 +6,12 @@
 	- Srikanth Sarma      sgurram@student.ethz.ch
 
 Requirements:
-	- Data must be in the current folder or the path `/cluster/project/infk/hilliges/lectures/mp19/project2/` at leonhard cluster should be accesible
+	- Data must be in the current folder or the path `/cluster/project/infk/hilliges/lectures/mp19/project2/` at leonhard cluster should be accesible.
+
 	- Data should be organized in two folders namely `images` and `annot`.
+
 	- `images` should contain the images while `annot` should contain `train.h5` (with 2d and 3d pose) and image file list (`train_images.txt` and `valid_images.txt`)
+
 	- All python dependencies must be installed using `setup.py`
 
 **Training:**
