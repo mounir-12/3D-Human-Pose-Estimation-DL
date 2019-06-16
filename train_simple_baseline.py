@@ -49,7 +49,6 @@ FLAGS = parser.parse_args()
 train_dir = FLAGS.train_dir
 
 print("\n\nTrain dir: {}\n\n".format(train_dir))
-print(FLAGS.batch_norm)
 summaries_dir = os.path.join( train_dir, "checkpoints" ) # Directory for TB summaries
 
 def create_model( session, batch_size ):
