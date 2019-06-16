@@ -9,27 +9,47 @@ import tensorflow as tf
 
 import linear_model
 import utils
+from argparse import ArgumentParser
 
-tf.app.flags.DEFINE_float("learning_rate", 1e-3, "Learning rate")
-tf.app.flags.DEFINE_integer("batch_size", 64, "Batch size to use during training")
-tf.app.flags.DEFINE_integer("epochs", 200, "How many epochs we should train for")
+parser = ArgumentParser()
+
+parser.add_argument('--epochs', type = int, default = 200, help = 'number of training epochs')
+parser.add_argument('--batch_size', type = int, default = 64, help = 'size of training batch')
+parser.add_argument('--learning_rate', type = float, default = 1e-3, help = 'learning rate for the optimizer')
 
 # Architecture
-tf.app.flags.DEFINE_integer("linear_size", 1024, "Size of each model layer.")
-tf.app.flags.DEFINE_integer("num_layers", 2, "Number of layers in the model.")
-tf.app.flags.DEFINE_boolean("residual", True, "Whether to add a residual connection every 2 layers")
-tf.app.flags.DEFINE_boolean("max_norm", True, "Apply maxnorm constraint to the weights")
-tf.app.flags.DEFINE_boolean("batch_norm", True, "Use batch_normalization")
-tf.app.flags.DEFINE_float("dropout", 0.5, "Dropout keep probability. 1 means no dropout")
+parser.add_argument('--linear_size', type = int, default = 1024, help = 'size of each model layer')
+parser.add_argument('--num_layers', type = int, default = 2, help = 'number of layers in the model')
+parser.add_argument('--residual', default = True, help = 'whether to add a residual connection every 2 layers', action="store_true")
+parser.add_argument('--max_norm', default = True, help = 'whether to apply maxnorm constraint to the weights', action="store_true")
+parser.add_argument('--batch_norm', default = True, help = 'whether to use batch_normalization', action="store_true")
+parser.add_argument('--dropout', type = float, default = 0.5, help = 'dropout keep probability. 1 means no dropout')
 
-# Directories
-tf.app.flags.DEFINE_string("train_dir", os.path.join(".", "log_SB", utils.timestamp()), "Training directory.")
+parser.add_argument('--train_dir', type = str, default = os.path.join(".", "log_SB", utils.timestamp()) , help = 'training directory')
 
-FLAGS = tf.app.flags.FLAGS
+# tf.app.flags.DEFINE_float("learning_rate", 1e-3, "Learning rate")
+# tf.app.flags.DEFINE_integer("batch_size", 64, "Batch size to use during training")
+# tf.app.flags.DEFINE_integer("epochs", 200, "How many epochs we should train for")
+
+# # Architecture
+# tf.app.flags.DEFINE_integer("linear_size", 1024, "Size of each model layer.")
+# tf.app.flags.DEFINE_integer("num_layers", 2, "Number of layers in the model.")
+# tf.app.flags.DEFINE_boolean("residual", True, "Whether to add a residual connection every 2 layers")
+# tf.app.flags.DEFINE_boolean("max_norm", True, "Apply maxnorm constraint to the weights")
+# tf.app.flags.DEFINE_boolean("batch_norm", True, "Use batch_normalization")
+# tf.app.flags.DEFINE_float("dropout", 0.5, "Dropout keep probability. 1 means no dropout")
+
+# # Directories
+# tf.app.flags.DEFINE_string("train_dir", os.path.join(".", "log_SB", utils.timestamp()), "Training directory.")
+
+# FLAGS = tf.app.flags.FLAGS
+
+FLAGS = parser.parse_args()
 
 train_dir = FLAGS.train_dir
 
 print("\n\nTrain dir: {}\n\n".format(train_dir))
+print(FLAGS.batch_norm)
 summaries_dir = os.path.join( train_dir, "checkpoints" ) # Directory for TB summaries
 
 def create_model( session, batch_size ):
