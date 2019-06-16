@@ -20,9 +20,9 @@ parser.add_argument('--learning_rate', type = float, default = 1e-3, help = 'lea
 # Architecture
 parser.add_argument('--linear_size', type = int, default = 1024, help = 'size of each model layer')
 parser.add_argument('--num_layers', type = int, default = 2, help = 'number of layers in the model')
-parser.add_argument('--residual', default = True, help = 'whether to add a residual connection every 2 layers', action="store_true")
-parser.add_argument('--max_norm', default = True, help = 'whether to apply maxnorm constraint to the weights', action="store_true")
-parser.add_argument('--batch_norm', default = True, help = 'whether to use batch_normalization', action="store_true")
+parser.add_argument('--no_residual', help = 'whether to add a residual connection every 2 layers', action="store_true") # by default, we use residual
+parser.add_argument('--no_max_norm', help = 'whether to apply maxnorm constraint to the weights', action="store_true") # by default, we use max_norm
+parser.add_argument('--no_batch_norm', help = 'whether to use batch_normalization', action="store_true") # by default, we use batch_norm
 parser.add_argument('--dropout', type = float, default = 0.5, help = 'dropout keep probability. 1 means no dropout')
 
 parser.add_argument('--train_dir', type = str, default = os.path.join(".", "log_SB", utils.timestamp()) , help = 'training directory')
@@ -46,7 +46,25 @@ parser.add_argument('--train_dir', type = str, default = os.path.join(".", "log_
 
 FLAGS = parser.parse_args()
 
+FLAGS.residual = not FLAGS.no_residual
+FLAGS.max_norm = not FLAGS.no_max_norm
+FLAGS.batch_norm = not FLAGS.no_batch_norm
+
 train_dir = FLAGS.train_dir
+
+print("\n\n")
+print("epochs:", FLAGS.epochs)
+print("batch_size:", FLAGS.batch_size)
+print("learning_rate:", FLAGS.learning_rate)
+print("linear_size:", FLAGS.linear_size)
+print("num_layers:", FLAGS.num_layers)
+print("residual:", FLAGS.residual)
+print("max_norm:", FLAGS.max_norm)
+print("batch_norm:", FLAGS.batch_norm)
+print("dropout:", FLAGS.dropout)
+print("train_dir:", FLAGS.train_dir)
+print("\n\n")
+#sys.exit(0)
 
 print("\n\nTrain dir: {}\n\n".format(train_dir))
 summaries_dir = os.path.join( train_dir, "checkpoints" ) # Directory for TB summaries

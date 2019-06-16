@@ -27,7 +27,7 @@ parser.add_argument('--continue_training', help = 'whether to continue training 
 parser.add_argument('--batch_size', type = int, default = 4, help = 'size of training batch')
 parser.add_argument('--learning_rate', type = float, default = 2.5*10**(-4), help = 'learning rate for the optimizer')
 
-parser.add_argument('--decay_lr', help='whether to deacy learning rate during training', action="store_true") # by default, we don't decay the learning rate
+parser.add_argument('--decay_lr', help='whether to decay learning rate during training', action="store_true") # by default, we don't decay the learning rate
 
 parser.add_argument('--log_iter_freq', type = int, default = 100, help = 'number of iterations between training logs')
 parser.add_argument('--valid_iter_freq', type = int, default = 500, help = 'number of iterations between validation steps')
