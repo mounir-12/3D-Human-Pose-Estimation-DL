@@ -22,28 +22,28 @@ from PIL import Image
 from argparse import ArgumentParser
 
 parser = ArgumentParser()
-parser.add_argument('--num_samples', type = int, default = 312188, help = 'size of the training set')
-parser.add_argument('--num_samples_test', type = int, default = 10987, help = 'size of the test set')
 parser.add_argument('--num_epochs', type = int, default = 2, help = 'number of training epochs')
-parser.add_argument('--continue_training', type = bool, default = False,  help = 'weather to continue training from a checkpoint')
+parser.add_argument('--continue_training', help = 'whether to continue training from the last checkpoint of the last experiment', action="store_true") # by default, we don't continue training
 parser.add_argument('--batch_size', type = int, default = 4, help = 'size of training batch')
-parser.add_argument('--learning_rate', type = float, default = 0.001, help = 'learning rate for the optimizer')
-parser.add_argument('--decay_lr',  type = bool, default = True, help = 'weather to deacy learning rate during training')
+parser.add_argument('--learning_rate', type = float, default = 2.5*10**(-4), help = 'learning rate for the optimizer')
+parser.add_argument('--nb_stacks', type = float, default = 8, help = 'number of stacked hourglasses')
+parser.add_argument('--decay_lr', help='whether to deacy learning rate during training', action="store_true") # by default, we don't decay the learning rate
+
 parser.add_argument('--log_iter_freq', type = int, default = 100, help = 'number of iterations between training logs')
 parser.add_argument('--valid_iter_freq', type = int, default = 500, help = 'number of iterations between validation steps')
 parser.add_argument('--valid_steps', type = int, default = 10, help = 'number of validation batches per validation step')
 parser.add_argument('--save_iter_freq', type = int, default = 2000, help = 'number of iterations between saving model checkpoints')
 parser.add_argument('--valid_samples', type = int, default = 2188, help = 'number of samples in the validation set')
-parser.add_argument('--test_every_epoch', type = bool, default = True, help = 'weather to evaluate test step after each train epoch')
-parser.add_argument('--shuffle', type = bool, default = True, help = 'weather to shuffle training data')
-parser.add_argument('--augment_data', type = bool, default = True, help = 'weather to augment data using image rotations')
+
+parser.add_argument('--no_test_every_epoch', help = 'whether to evaluate test step after each train epoch', action="store_true") # by default, we test every epoch
+parser.add_argument('--no_data_aug', help = 'whether to augment data using image rotations', action="store_true") # by default, we augment data
 parser.add_argument('--batches_to_prefetch', type = int, default = 20, help = 'number of batches to prefetch')
 
 
 args = parser.parse_args()
 
-NUM_SAMPLES= args.num_samples
-NUM_SAMPLES_TEST = args.num_samples_test
+NUM_SAMPLES= 312188
+NUM_SAMPLES_TEST = 10987
 CONTINUE_TRAINING = args.continue_training
 
 # Train parameters
@@ -56,16 +56,16 @@ VALID_ITER_FREQ = args.valid_iter_freq
 VALID_STEPS = args.valid_steps # number of validation batches to use to compute the mean validation loss and mpjpe
 SAVE_ITER_FREQ = args.save_iter_freq
 VALID_SAMPLES = args.valid_samples
-TEST_EVERY_EPOCH = args.test_every_epoch
+TEST_EVERY_EPOCH = not args.no_test_every_epoch
 
 # Data parameters
-SHUFFLE = args.shuffle
+SHUFFLE = True
 DATA_TO_LOAD = "pose2d"
-AUGMENT_DATA = args.augment_data
+AUGMENT_DATA = not args.no_data_aug
 BATCHES_TO_PREFETCH = args.batches_to_prefetch
 
 # Model parameters
-NB_STACKS=4
+NB_STACKS=args.nb_stacks
 SIGMA=1
 
 # Paths
@@ -88,12 +88,18 @@ print("\n")
 print("Run infos:")
 print("    NUM_EPOCHS: {}".format(NUM_EPOCHS))
 print("    BATCH_SIZE: {}".format(BATCH_SIZE))
+print("    BATCHES_TO_PREFETCH: {}".format(BATCHES_TO_PREFETCH))
 print("    AUGMENT_DATA: {}".format(AUGMENT_DATA))
 print("    LEARNING_RATE: {}".format(LEARNING_RATE))
+print("    DECAY_LR: {}".format(DECAY_LR))
 print("    LOG_DIR: {}".format(LOG_PATH))
 print("    CONTINUE_TRAINING: {}".format(CONTINUE_TRAINING))
+print("    TEST_EVERY_EPOCH: {}".format(TEST_EVERY_EPOCH))
+print("    NB_STACKS: {}".format(NB_STACKS))
 print("\n")
 sys.stdout.flush()
+
+#sys.exit(0)
 
 config = tf.ConfigProto()
 config.gpu_options.allow_growth = True
