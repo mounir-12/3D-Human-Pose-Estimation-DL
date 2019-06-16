@@ -49,6 +49,11 @@ The model will train for 2 epochs, with `batch_size=4`, `learning_rate=2.5e-4`, 
 Each epoch takes around 7.5h to finish on the GTX 1080 Ti of the Leonhard cluster.
 Testing takes around 35 min on the GTX 1080 Ti
 
+To continue training for 2 more epochs, simply run:
+```
+python3 train_hourglass3D.py --continue_training
+```
+
 **Other Options**
 Training parameters can be changes using command line arguments. For more details on available arguments, run one of the following commands command:
 ```
