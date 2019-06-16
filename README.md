@@ -26,7 +26,7 @@ Training parameters can be changes using command line arguments. For (more detai
 **Testing:**
 
 Once the necessary models have been trained and the model checkpoints have been saved at respective locations, we can perform predictions on test data.
-To use model (hourglass3D, hourglass2D or simple_baseline) for performing prediction on valid images, run the command:
+To use model x (hourglass3D, hourglass2D or simple_baseline) for performing prediction on valid images, run the command:
 	`python3 test_x.py`
 
 In order to compute the average of multiple predictions, create a folder `./to_merge` and add the prediction files (.csv.gz files) to the folder and run the command;
